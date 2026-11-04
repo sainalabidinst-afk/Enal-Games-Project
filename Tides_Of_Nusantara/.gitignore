@@ -1,21 +1,27 @@
-# Visual Studio
+# Visual Studio / IDE
 .vs/
-*.slnx
+.idea/
+.vscode/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
 *.opensdf
 *.sdf
 *.suo
 *.user
 *.userprefs
+*.slnx
+*.db
+*.ipch
 
-# Unreal Engine
+# Unreal Engine Temporary Folders
 Binaries/
-Build/
+DerivedDataCache/
 Intermediate/
 Saved/
-DerivedDataCache/
-.idea/
 
-# OS
+# OS Auto-generated
 .DS_Store
 Thumbs.db
 
@@ -26,5 +32,9 @@ Thumbs.db
 *.exe
 *.pdb
 
-# Node modules
+# Un-ignore DLL/LIB inside Plugins (Jika menggunakan plugin C++ pihak ketiga)
+!Plugins/**/*.dll
+!Plugins/**/*.lib
+
+# Node modules (jika ada tool external)
 node_modules/

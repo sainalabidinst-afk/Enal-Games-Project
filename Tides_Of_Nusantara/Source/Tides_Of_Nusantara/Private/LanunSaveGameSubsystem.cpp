@@ -7,6 +7,7 @@
 #include "PetCompanionSubsystem.h"
 #include "ShipFleetSubsystem.h"
 #include "TerritoryBuyoutSubsystem.h"
+#include "Math/UnrealMathUtility.h"
 
 bool ULanunSaveGameSubsystem::SaveGameState(APlayerController* PC)
 {
@@ -120,6 +121,9 @@ bool ULanunSaveGameSubsystem::LoadGameState(APlayerController* PC)
         return false;
     }
 
+    // Jalankan migrasi schema jika save file masih versi lama
+    MigrateSaveDataSchema(SaveGameInstance);
+
     UWorld* World = GetWorld();
     if (World)
     {
@@ -217,4 +221,38 @@ bool ULanunSaveGameSubsystem::LoadGameState(APlayerController* PC)
 bool ULanunSaveGameSubsystem::DoesSaveSlotExist() const
 {
     return UGameplayStatics::DoesSaveGameExist(DefaultSlotName, DefaultUserIndex);
+}
+
+void ULanunSaveGameSubsystem::MigrateSaveDataSchema(ULanunSaveGame* SaveInstance)
+{
+    if (!SaveInstance)
+    {
+        return;
+    }
+
+    if (SaveInstance->SaveSchemaVersion >= 2)
+    {
+        return;
+    }
+
+    UE_LOG(LogTemp, Warning, TEXT("Migrating Save Game Schema from V%d to V2..."), SaveInstance->SaveSchemaVersion);
+
+    FLanunWorldSaveData& SaveData = SaveInstance->SaveData;
+
+    for (const FOfficerSaveState& OldData : SaveData.LegacyOfficers_DEPRECATED)
+    {
+        FOfficerLegacyState NewLegacyState;
+        NewLegacyState.OfficerID = OldData.AssignedShipID;
+        NewLegacyState.GenerationIndex = 1;
+        NewLegacyState.LegacyStatus = ECompanionLegacyStatus::ActiveOnBoard;
+        NewLegacyState.InheritedLoyaltyBonus = 0;
+        NewLegacyState.LegacyBonusAppliedGeneration = 1;
+
+        SaveData.OfficerLegacyStates.Add(NewLegacyState);
+    }
+
+    SaveData.LegacyOfficers_DEPRECATED.Empty();
+    SaveInstance->SaveSchemaVersion = 2;
+
+    UE_LOG(LogTemp, Log, TEXT("Save Game Migration Completed Successfully."));
 }
