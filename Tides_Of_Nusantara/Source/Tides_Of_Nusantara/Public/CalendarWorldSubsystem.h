@@ -40,6 +40,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
+	// UTickableWorldSubsystem profiling
+	virtual TStatId GetStatId() const override
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(UCalendarWorldSubsystem, STATGROUP_Tickables);
+	}
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Calendar|Config")
 	float RealSecondsPerGameDay = 2700.0f;
 
