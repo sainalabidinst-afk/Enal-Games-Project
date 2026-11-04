@@ -30,4 +30,16 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Lanun|Progression|Travel")
 	static int64 CalculateFastTravelCost(int32 SectorDistance, int32 CrewCount, int64 DailyRationCostPerCrew);
+
+	/**
+	 * Maintenance drag 28% + tagihan Senin 00:00.
+	 * Jika DayOfWeek == 0 (Senin) dan Hour == 0, potong 28% dari Rupiah lalu kurangi FixedMondayTax.
+	 * Mengembalikan Rupiah sisa (minimal 0).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Economy|Maintenance")
+	static int64 ApplyMondayMaintenance(int64 CurrentRupiah, int32 DayOfWeek, int32 Hour, int64 FixedMondayTax);
+
+	/** Persentase drag maintenanceSenin (28%). */
+	UFUNCTION(BlueprintPure, Category = "Lanun|Economy|Maintenance")
+	static float GetMondayMaintenanceDragPercent();
 };

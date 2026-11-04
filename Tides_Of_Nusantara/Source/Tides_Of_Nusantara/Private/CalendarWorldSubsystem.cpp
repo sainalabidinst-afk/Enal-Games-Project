@@ -101,3 +101,8 @@ float UCalendarWorldSubsystem::GetTidalZOffset() const
     const float TideAmplitude = FMath::Abs(FMath::Sin(LunarPhaseAngle));
     return FMath::Lerp(-150.0f, 150.0f, TideAmplitude);
 }
+
+int32 UCalendarWorldSubsystem::GetDayOfWeek() const
+{
+    return TotalDaysPassed % 7;
+}

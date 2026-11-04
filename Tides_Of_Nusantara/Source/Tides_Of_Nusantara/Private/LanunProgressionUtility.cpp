@@ -40,3 +40,32 @@ int64 ULanunProgressionUtility::CalculateFastTravelCost(int32 SectorDistance, in
 	const int64 CrewCost = static_cast<int64>(CrewCount) * DailyRationCostPerCrew;
 	return DistanceCost + CrewCost;
 }
+
+int64 ULanunProgressionUtility::ApplyMondayMaintenance(int64 CurrentRupiah, int32 DayOfWeek, int32 Hour, int64 FixedMondayTax)
+{
+	if (DayOfWeek != 0 || Hour != 0)
+	{
+		return CurrentRupiah;
+	}
+
+	// Drag 28%
+	const int64 DragAmount = FMath::FloorToInt64(static_cast<double>(CurrentRupiah) * 0.28);
+	int64 Remaining = CurrentRupiah - DragAmount;
+
+	// Tagihan Senin tetap
+	if (FixedMondayTax > 0 && Remaining >= FixedMondayTax)
+	{
+		Remaining -= FixedMondayTax;
+	}
+	else if (FixedMondayTax > 0)
+	{
+		Remaining = 0;
+	}
+
+	return FMath::Max<int64>(Remaining, 0);
+}
+
+float ULanunProgressionUtility::GetMondayMaintenanceDragPercent()
+{
+	return 28.0f;
+}

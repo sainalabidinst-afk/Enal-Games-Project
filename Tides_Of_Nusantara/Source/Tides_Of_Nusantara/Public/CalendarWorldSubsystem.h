@@ -74,6 +74,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Calendar|Calculations")
     float GetTidalZOffset() const;
 
+    /**
+     * Hari dalam minggu (0 = Senin, 1 = Selasa, …, 6 = Minggu).
+     * Digunakan untuk pemicu tagihan Senin 00:00.
+     */
+    UFUNCTION(BlueprintPure, Category = "Calendar|Calculations")
+    int32 GetDayOfWeek() const;
+
 private:
     float ElapsedRealSecondsCurrentDay = 0.0f;
 };
