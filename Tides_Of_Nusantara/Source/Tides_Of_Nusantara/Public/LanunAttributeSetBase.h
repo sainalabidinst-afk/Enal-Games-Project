@@ -79,6 +79,34 @@ public:
     FGameplayAttributeData UnallocatedSkillPoints;
     ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, UnallocatedSkillPoints)
 
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Reputation")
+    FGameplayAttributeData FactionReputation;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, FactionReputation)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Reputation")
+    FGameplayAttributeData TerritoryPopularity;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, TerritoryPopularity)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Reputation")
+    FGameplayAttributeData CrewLoyalty;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, CrewLoyalty)
+
+    /** Dompet Rupiah terpusat (int64) — migrasi dari PlayerGold terpecah di subsistem. */
+    UPROPERTY(BlueprintReadOnly, Category = "Currency|Rupiah")
+    int64 Rupiah;
+
     UFUNCTION(BlueprintCallable, Category = "Lanun|Progression")
     bool AllocateAttributePoint(EHeroAttributeType AttributeType);
+
+    UFUNCTION(BlueprintCallable, Category = "Currency|Rupiah")
+    bool CanAffordRupiah(int64 Amount) const;
+
+    UFUNCTION(BlueprintCallable, Category = "Currency|Rupiah")
+    bool SpendRupiah(int64 Amount);
+
+    UFUNCTION(BlueprintCallable, Category = "Currency|Rupiah")
+    void AddRupiah(int64 Amount);
+
+    UFUNCTION(BlueprintPure, Category = "Currency|Rupiah")
+    int64 GetRupiah() const;
 };

@@ -18,6 +18,12 @@ ULanunAttributeSetBase::ULanunAttributeSetBase()
 
     InitUnallocatedAttributePoints(0.0f);
     InitUnallocatedSkillPoints(0.0f);
+
+    InitFactionReputation(0.0f);
+    InitTerritoryPopularity(0.0f);
+    InitCrewLoyalty(0.0f);
+
+    Rupiah = 0;
 }
 
 void ULanunAttributeSetBase::PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue)
@@ -42,6 +48,12 @@ void ULanunAttributeSetBase::PreAttributeChange(const FGameplayAttribute& Attrib
         || Attribute == GetMysticismAttribute())
     {
         NewValue = FMath::Clamp(NewValue, 0.0f, 100.0f);
+    }
+    else if (Attribute == GetFactionReputationAttribute()
+        || Attribute == GetTerritoryPopularityAttribute()
+        || Attribute == GetCrewLoyaltyAttribute())
+    {
+        NewValue = FMath::Clamp(NewValue, -100.0f, 100.0f);
     }
 }
 
@@ -88,6 +100,27 @@ void ULanunAttributeSetBase::PostGameplayEffectExecute(const FGameplayEffectModC
             SetMysticism(NewValue);
         }
     }
+    else if (Data.EvaluatedData.Attribute == GetFactionReputationAttribute()
+        || Data.EvaluatedData.Attribute == GetTerritoryPopularityAttribute()
+        || Data.EvaluatedData.Attribute == GetCrewLoyaltyAttribute())
+    {
+        const float NewValue = FMath::Clamp(
+            Data.EvaluatedData.Attribute == GetFactionReputationAttribute() ? GetFactionReputation()
+            : Data.EvaluatedData.Attribute == GetTerritoryPopularityAttribute() ? GetTerritoryPopularity()
+            : GetCrewLoyalty(), -100.0f, 100.0f);
+        if (Data.EvaluatedData.Attribute == GetFactionReputationAttribute())
+        {
+            SetFactionReputation(NewValue);
+        }
+        else if (Data.EvaluatedData.Attribute == GetTerritoryPopularityAttribute())
+        {
+            SetTerritoryPopularity(NewValue);
+        }
+        else if (Data.EvaluatedData.Attribute == GetCrewLoyaltyAttribute())
+        {
+            SetCrewLoyalty(NewValue);
+        }
+    }
 }
 
 bool ULanunAttributeSetBase::AllocateAttributePoint(EHeroAttributeType AttributeType)
@@ -116,4 +149,39 @@ bool ULanunAttributeSetBase::AllocateAttributePoint(EHeroAttributeType Attribute
     }
 
     return true;
+}
+
+bool ULanunAttributeSetBase::CanAffordRupiah(int64 Amount) const
+{
+    if (Amount < 0)
+    {
+        return true;
+    }
+    return Rupiah >= Amount;
+}
+
+bool ULanunAttributeSetBase::SpendRupiah(int64 Amount)
+{
+    if (Amount < 0 || !CanAffordRupiah(Amount))
+    {
+        return false;
+    }
+
+    Rupiah -= Amount;
+    return true;
+}
+
+void ULanunAttributeSetBase::AddRupiah(int64 Amount)
+{
+    if (Amount <= 0)
+    {
+        return;
+    }
+
+    Rupiah += Amount;
+}
+
+int64 ULanunAttributeSetBase::GetRupiah() const
+{
+    return Rupiah;
 }
