@@ -830,20 +830,20 @@ Preferensi disimpan lokal. Nilai aktual pada post-process, camera shake, flash, 
 - [ ] Compile editor/game Win64 pada target RTX 2000 Ada dan validasi DX12/SM6, Lumen/HWRT, VSM, TSR, Substrate, volumetric fog serta shader pipeline cache.
 - [ ] Verifikasi setiap nama plugin pada `.uproject` terhadap descriptor UE 5.8.4 dan setiap module dependency pada `Build.cs` terhadap modul source; jalankan editor startup, cook serta packaging Win64. Jangan gunakan nama module sebagai nama plugin tanpa verifikasi.
 - [ ] Siapkan konfigurasi Development untuk testing dan Shipping untuk distribusi; pastikan console dan debug symbols tidak disertakan pada hasil Shipping.
-- [ ] Compile modul setelah getter `GetBoardState()`/`GetShipMovementComponent()` ditambahkan; **selesai — kompilasi UE 5.8.4 berhasil**; verifikasi error tersisa dan tambah tes/smoke test dasar.
+- [x] Compile modul setelah getter `GetBoardState()`/`GetShipMovementComponent()` ditambahkan; **selesai — kompilasi UE 5.8.4 berhasil**; verifikasi error tersisa dan tambah tes/smoke test dasar.
 - [ ] Siapkan peta startup valid, game mode, pawn, input mapping karakter/kapal, serta jalur packaging PC.
 - [ ] Verifikasi startup, possession, Enhanced Input, dan perpindahan konteks on-foot/sailing dalam PIE.
 - [ ] Uji KPI sektor pada RTX 2000 Ada: 60 FPS Editor 1080p High/TSR Quality, game VRAM ≤7,5 GB, pesisir-ke-karang 2–4 menit, laut lepas 5–8 menit; catat peak/1% low/hitch. Jangan jadikan Ollama 14B sebagai persyaratan atau asumsikan dapat berbagi VRAM.
 - [ ] Buat prototipe sektor 10 × 10 km Selat Makassar/Spermonde; ukur local/ocean travel scale, transisi sektor, streaming, memori/VRAM dan kepadatan gameplay.
 - [ ] Bangun dua pelabuhan slice: Bandar Somba Opu (perdagangan/quest/pasar gelap) dan Teluk Tersembunyi Spermonde (markas/kapal/Beli Kampung); validasi rute di antaranya dan fast travel berbiaya.
-- [ ] Implementasikan encounter pacing 90 detik atau 1,5–2 mil laut dengan satu aturan pemicu, cooldown, batas simultan dan opsi menghindar.
-- [ ] Implementasikan formula fast travel berdasarkan sektor (500 Rp per sektor) plus ransum harian per kru; tampilkan quote dan tes debit/kemajuan kalender/risiko rute.
-- [ ] Kunci kontrak dompet Rupiah `int64`; inventarisasi dan migrasikan API `PlayerGold`/`Gold` pada trade, buyout, repair, save, UI dan quest tanpa saldo otoritatif ganda.
+- [x] Implementasikan encounter pacing 90 detik atau 1,5–2 mil laut dengan satu aturan pemicu, cooldown, batas simultan dan opsi menghindar.
+- [x] Implementasikan formula fast travel berdasarkan sektor (500 Rp per sektor) plus ransum harian per kru; tampilkan quote dan tes debit/kemajuan kalender/risiko rute.
+- [x] Kunci kontrak dompet Rupiah `int64`; inventarisasi dan migrasikan API `PlayerGold`/`Gold` pada trade, buyout, repair, save, UI dan quest tanpa saldo otoritatif ganda.
 - [ ] Tentukan satu aturan pembulatan untuk harga/biaya integer Rupiah dan tes saldo nol, nilai ekstrem, overflow/underflow, serta transaksi gagal atomik.
 - [ ] Konsistenkan istilah sejarah alternatif di Codex/dialog: “Kongsi Dagang Barat”; jangan menyebut VOC historis sebagai faksi 1521 tanpa penjelasan timeline alternatif.
 - [ ] Pertahankan plugin core engine yang dibutuhkan; tunda semua plugin pihak ketiga sampai vertical slice lulus kualifikasi.
 - [ ] Migrasikan save lokal `LanunSaveSlot_0` tanpa kehilangan data ke schema-versioned Offline-First state; terapkan staging, validasi baca balik dan primary/backup atomik (`SaveSlot.sav`/`.bak`) pada `%LOCALAPPDATA%/Tides_Of_Nusantara/Saved/SaveGames/`.
-- [ ] Tambahkan `SaveSchemaVersion` dan migrator eksplisit; validasi migrasi `FOfficerSaveState` → `FOfficerLegacyState` sebelum menyimpan/mengganti file lama.
+- [x] Tambahkan `SaveSchemaVersion` dan migrator eksplisit; validasi migrasi `FOfficerSaveState` → `FOfficerLegacyState` sebelum menyimpan/mengganti file lama.
 - [ ] Tambahkan uji recovery ketika primary save invalid, backup valid, keduanya invalid, atau proses penyimpanan terputus; jangan menghapus save lama sebelum pengganti valid.
 
 ### Tahap 1 — Vertical slice cerita (30–45 menit)
@@ -860,13 +860,13 @@ Preferensi disimpan lokal. Nilai aktual pada post-process, camera shake, flash, 
 - [ ] Harga/stok yang berubah dan transaksi buy/sell yang tervalidasi serta tersimpan.
 - [ ] Quest Belenggu Suratan Utang bercabang; simpan pilihan dan status tahapnya.
 - [ ] Buka Beli Kampung hanya sesudah utang bebas; pembelian tetap membayar harga hak kelola.
-- [ ] Implementasikan tiga domain reputasi terpisah (-100…+100): `FactionReputation`, `TerritoryPopularity`, `CrewLoyalty`; uji pengaruh masing-masing pada encounter, sewa/buyout, efisiensi kru dan mutiny.
+- [x] Implementasikan tiga domain reputasi terpisah (-100…+100): `FactionReputation`, `TerritoryPopularity`, `CrewLoyalty`; uji pengaruh masing-masing pada encounter, sewa/buyout, efisiensi kru dan mutiny.
 - [ ] Implementasikan `Unrest` sebagai state risiko pemerintahan yang terpisah, dengan tindakan, ambang dan konsekuensi yang dapat dijelaskan.
-- [ ] Terapkan maintenance drag 28% dari gross penjualan kargo rempah dengan rincian gross/potongan/net tanpa double-charge.
-- [ ] Jalankan pemasukan pos kampung/tambang mingguan melalui kalender dengan biaya operasi lebih dahulu, berhenti/berkurang jika kas tidak cukup.
-- [ ] Proses tagihan setiap Senin 00:00 waktu game: upah kru + 2.500 Rp per benteng + 1.200 Rp per tambang; validasi kekurangan kas tanpa saldo negatif dan dengan notifikasi/konsekuensi.
-- [ ] Terapkan formula sewa `BaseRent × (1 − TerritoryPopularity/200)`, syarat buyout TerritoryPopularity ≥40 plus quest utang Completed, dan uji nilai batas -100/+100.
-- [ ] Uji ambang faksi (Hostile <-30, Neutral -30…+30, Allied >+30) dan mutiny harian CrewLoyalty <-50 dengan peluang `clamp(abs(CrewLoyalty+50)×1.5%,0%,100%)`.
+- [x] Terapkan maintenance drag 28% dari gross penjualan kargo rempah dengan rincian gross/potongan/net tanpa double-charge.
+- [x] Jalankan pemasukan pos kampung/tambang mingguan melalui kalender dengan biaya operasi lebih dahulu, berhenti/berkurang jika kas tidak cukup.
+- [x] Proses tagihan setiap Senin 00:00 waktu game: upah kru + 2.500 Rp per benteng + 1.200 Rp per tambang; validasi kekurangan kas tanpa saldo negatif dan dengan notifikasi/konsekuensi.
+- [x] Terapkan formula sewa `BaseRent × (1 − TerritoryPopularity/200)`, syarat buyout TerritoryPopularity ≥40 plus quest utang Completed, dan uji nilai batas -100/+100.
+- [x] Uji ambang faksi (Hostile <-30, Neutral -30…+30, Allied >+30) dan mutiny harian CrewLoyalty <-50 dengan peluang `clamp(abs(CrewLoyalty+50)×1.5%,0%,100%)`.
 - [ ] Implementasikan satu fasilitas kota yang dapat di-upgrade dengan biaya dan efek terukur.
 
 ### Tahap 3 — Companion, konten darat, dan progresi
@@ -874,12 +874,12 @@ Preferensi disimpan lokal. Nilai aktual pada post-process, camera shake, flash, 
 - [ ] Implementasikan roster empat Companion inti, satu quest loyalitas, penugasan, fatigue dan manfaat.
 - [ ] Integrasikan reward quest yang aman: modifier ber-cap, aktif hanya pada state penugasan yang benar.
 - [ ] Implementasikan level Hero/Companion/satwa/markas dengan kurva diuji, UI XP dan milestone.
-- [ ] Implementasikan utility XP Hero `floor(500 + 50L + 9L^1.8)` (L=1–99, cap 100) dengan tes threshold per level dan cumulative golden values pada tabel.
-- [ ] Implementasikan progresi Hero persisten: Level 1 = 0 poin; Level 2–100 masing-masing +3 AP/+1 SP, prasyarat unlock, authority lokal dan aturan respec.
-- [ ] Implementasikan biaya skill point Tier 1/2/3/4 = 1/2/3/5 SP; respec di Somba Opu seharga Level × 1.000 Rp, cooldown 1 minggu, refund seluruh alokasi dan tes batas/persistensi.
-- [ ] Implementasikan diminishing returns atribut raw 1–50 (1,0x), 51–80 (0,5x), 81–100 (0,25x), effective cap 70; uji syarat unlock tetap memakai raw attribute.
+- [x] Implementasikan utility XP Hero `floor(500 + 50L + 9L^1.8)` (L=1–99, cap 100) dengan tes threshold per level dan cumulative golden values pada tabel.
+- [x] Implementasikan progresi Hero persisten: Level 1 = 0 poin; Level 2–100 masing-masing +3 AP/+1 SP, prasyarat unlock, authority lokal dan aturan respec.
+- [x] Implementasikan biaya skill point Tier 1/2/3/4 = 1/2/3/5 SP; respec di Somba Opu seharga Level × 1.000 Rp, cooldown 1 minggu, refund seluruh alokasi dan tes batas/persistensi.
+- [x] Implementasikan diminishing returns atribut raw 1–50 (1,0x), 51–80 (0,5x), 81–100 (0,25x), effective cap 70; uji syarat unlock tetap memakai raw attribute.
 - [ ] Integrasikan empat cabang skill ke AbilitySpec, input, biaya stamina, GameplayEffects, feedback UI, dan aturan stacking; bedakan progresi Hero dari AttributeSet AI.
-- [ ] Implementasikan ability Tangkas Salawaku end-to-end: parry window, mitigasi serangan incoming, event parry sukses, counter satu kali, cancellation/timer cleanup, authority lokal dan test.
+- [x] Implementasikan ability Tangkas Salawaku end-to-end: parry window, mitigasi serangan incoming, event parry sukses, counter satu kali, cancellation/timer cleanup, authority lokal dan test.
 - [ ] Buat traversal darat, satu fauna/mount yang sesuai, dan satu treasure quest.
 - [ ] Validasi kebijakan folklore fiksi dan Protected Wildlife: Harimau Sumatra, Anoa, Komodo, Kakatua Raja tidak dapat diburu untuk grinding.
 - [ ] Implementasikan pengaturan lokal Camera Shake 0–100% (default 100%), Motion Blur toggle, Reduced Flash, dan HUD scale 80–120%; verifikasi semua efek/render/UI benar-benar mengikuti setting.
