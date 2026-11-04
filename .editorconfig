@@ -1,0 +1,22 @@
+# Unreal Engine naming conventions
+# Enable Naming Convention Checker for C++ code
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = tab
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{h,cpp}]
+# Unreal Engine C++ naming rules
+# Class names: PascalCase with prefix (U, A, S, F, etc.)
+# Function names: PascalCase
+# Variable names: camelCase
+# Member variables: prefix with underscore or m_
+# Boolean variables: prefix with b
+# Enums: PascalCase
+# UENUM values: PascalCase
