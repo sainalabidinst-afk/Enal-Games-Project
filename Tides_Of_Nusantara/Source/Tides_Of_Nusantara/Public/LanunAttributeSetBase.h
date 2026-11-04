@@ -5,6 +5,15 @@
 #include "AbilitySystemComponent.h"
 #include "LanunAttributeSetBase.generated.h"
 
+UENUM(BlueprintType)
+enum class EHeroAttributeType : uint8
+{
+    Strength,
+    Agility,
+    Leadership,
+    Mysticism
+};
+
 #define ATTRIBUTE_ACCESSORS(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_PROPERTY_GETTER(ClassName, PropertyName) \
     GAMEPLAYATTRIBUTE_VALUE_GETTER(PropertyName) \
@@ -45,4 +54,31 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Attributes|Physics")
     FGameplayAttributeData SwimmingBuoyancy;
     ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, SwimmingBuoyancy)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Hero")
+    FGameplayAttributeData Strength;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, Strength)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Hero")
+    FGameplayAttributeData Agility;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, Agility)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Hero")
+    FGameplayAttributeData Leadership;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, Leadership)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Hero")
+    FGameplayAttributeData Mysticism;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, Mysticism)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Points")
+    FGameplayAttributeData UnallocatedAttributePoints;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, UnallocatedAttributePoints)
+
+    UPROPERTY(BlueprintReadOnly, Category = "Attributes|Points")
+    FGameplayAttributeData UnallocatedSkillPoints;
+    ATTRIBUTE_ACCESSORS(ULanunAttributeSetBase, UnallocatedSkillPoints)
+
+    UFUNCTION(BlueprintCallable, Category = "Lanun|Progression")
+    bool AllocateAttributePoint(EHeroAttributeType AttributeType);
 };
