@@ -69,3 +69,63 @@ float ULanunProgressionUtility::GetMondayMaintenanceDragPercent()
 {
 	return 28.0f;
 }
+
+float ULanunProgressionUtility::CalculateEffectiveAttribute(int32 RawAttribute)
+{
+	const int32 Clamped = FMath::Clamp(RawAttribute, 0, 100);
+
+	const float Part1 = FMath::Min(Clamped, 50) * 1.0f;
+	const float Part2 = FMath::Clamp(Clamped - 50, 0, 30) * 0.5f;
+	const float Part3 = FMath::Clamp(Clamped - 80, 0, 20) * 0.25f;
+
+	return FMath::Min(Part1 + Part2 + Part3, 70.0f);
+}
+
+EFactionRelation ULanunProgressionUtility::GetFactionRelation(int32 Reputation)
+{
+	if (Reputation < -30)
+	{
+		return EFactionRelation::Hostile;
+	}
+	if (Reputation > 30)
+	{
+		return EFactionRelation::Allied;
+	}
+	return EFactionRelation::Neutral;
+}
+
+float ULanunProgressionUtility::CalculateMutinyChancePercent(int32 CrewLoyalty)
+{
+	if (CrewLoyalty >= -50)
+	{
+		return 0.0f;
+	}
+
+	const float Chance = FMath::Abs(static_cast<float>(CrewLoyalty + 50)) * 1.5f;
+	return FMath::Clamp(Chance, 0.0f, 100.0f);
+}
+
+int64 ULanunProgressionUtility::CalculateDockRent(int64 BaseRent, int32 TerritoryPopularity)
+{
+	const int32 ClampedPopularity = FMath::Clamp(TerritoryPopularity, -100, 100);
+	const float Factor = 1.0f - (static_cast<float>(ClampedPopularity) / 200.0f);
+	const double Result = static_cast<double>(BaseRent) * static_cast<double>(Factor);
+	return FMath::FloorToInt64(Result);
+}
+
+int32 ULanunProgressionUtility::GetSkillUnlockCost(int32 Tier)
+{
+	switch (Tier)
+	{
+	case 1:
+		return 1;
+	case 2:
+		return 2;
+	case 3:
+		return 3;
+	case 4:
+		return 5;
+	default:
+		return 0;
+	}
+}
