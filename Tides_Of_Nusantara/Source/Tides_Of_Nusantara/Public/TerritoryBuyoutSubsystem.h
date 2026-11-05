@@ -28,7 +28,7 @@ struct FVillageBuyoutData
     bool bDebtQuestCleared = false;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVillagePurchased, FName, VillageID, float, FinalPricePaid);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnVillagePurchased, FName, VillageID, int64, FinalPricePaid);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVillageUnlocked, FName, VillageID);
 
 UCLASS()
@@ -52,10 +52,10 @@ public:
     float CalculateEffectivePrice(FName VillageID, float OfficerDiscountPercent) const;
 
     UFUNCTION(BlueprintPure, Category = "Territory Buyout")
-    bool CanPurchaseVillage(FName VillageID, float PlayerGold, float OfficerDiscountPercent, FText& OutReason) const;
+    bool CanPurchaseVillage(FName VillageID, int64 PlayerRupiah, float OfficerDiscountPercent, FText& OutReason) const;
 
     UFUNCTION(BlueprintCallable, Category = "Territory Buyout")
-    bool PurchaseVillage(FName VillageID, UPARAM(ref) float& PlayerGold, float OfficerDiscountPercent);
+    bool PurchaseVillage(FName VillageID, UPARAM(ref) int64& PlayerRupiah, float OfficerDiscountPercent);
 
     UFUNCTION(BlueprintCallable, Category = "Territory Buyout")
     bool SetDebtQuestStatus(FName VillageID, bool bCleared);

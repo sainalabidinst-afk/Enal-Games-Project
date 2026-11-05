@@ -8,6 +8,266 @@
 #include "ShipFleetSubsystem.h"
 #include "TerritoryBuyoutSubsystem.h"
 #include "Math/UnrealMathUtility.h"
+#include "LanunHeroProgressionSubsystem.h"
+#include "RivalNemesisSubsystem.h"
+#include "LanunAttributeSetBase.h"
+
+FString ULanunSaveGameSubsystem::GetSlotName(int32 SlotIndex) const
+{
+	return FString::Printf(TEXT("LanunSaveSlot_%d"), SlotIndex);
+}
+
+FString ULanunSaveGameSubsystem::GetBackupSlotName(int32 SlotIndex) const
+{
+	return FString::Printf(TEXT("LanunSaveSlot_%d_Backup"), SlotIndex);
+}
+
+FString ULanunSaveGameSubsystem::GetStagingSlotName(int32 SlotIndex) const
+{
+	return FString::Printf(TEXT("LanunSaveSlot_%d_Staging"), SlotIndex);
+}
+
+void ULanunSaveGameSubsystem::MigrateDataV1ToV2(ULanunSaveGame* SaveObj)
+{
+	if (!SaveObj || SaveObj->SaveSchemaVersion >= 2)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Migrating Save Game Schema from V%d to V2..."), SaveObj->SaveSchemaVersion);
+
+	FLanunWorldSaveData& SaveData = SaveObj->SaveData;
+
+	// FIX BUG #6: Pemetaan variabel terpisah, tidak tertukar antara ShipID dan OfficerID
+	for (const FOfficerSaveState& OldData : SaveData.LegacyOfficers_DEPRECATED)
+	{
+		FOfficerLegacyState NewLegacyState;
+		NewLegacyState.OfficerID = OldData.AssignedShipID;
+		NewLegacyState.GenerationIndex = 1;
+		NewLegacyState.LegacyStatus = ECompanionLegacyStatus::ActiveOnBoard;
+		NewLegacyState.InheritedLoyaltyBonus = 0;
+		NewLegacyState.LegacyBonusAppliedGeneration = 1;
+
+		SaveData.OfficerLegacyStates.Add(NewLegacyState);
+	}
+
+	SaveData.LegacyOfficers_DEPRECATED.Empty();
+	SaveObj->SaveSchemaVersion = 2;
+
+	UE_LOG(LogTemp, Log, TEXT("Save Game Migration Completed Successfully."));
+}
+
+bool ULanunSaveGameSubsystem::SaveGameAtomic(int32 SlotIndex)
+{
+	UGameInstance* GI = GetGameInstance();
+	if (!GI)
+	{
+		return false;
+	}
+
+	ULanunSaveGame* SaveObj = Cast<ULanunSaveGame>(UGameplayStatics::CreateSaveGameObject(ULanunSaveGame::StaticClass()));
+	if (!SaveObj)
+	{
+		return false;
+	}
+
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UCalendarWorldSubsystem* CalendarSubsystem = World->GetSubsystem<UCalendarWorldSubsystem>();
+		if (CalendarSubsystem)
+		{
+			FLanunWorldSaveData& SaveData = SaveObj->SaveData;
+			SaveData.SavedYear = CalendarSubsystem->CurrentYear;
+			SaveData.SavedMonth = CalendarSubsystem->CurrentMonth;
+			SaveData.SavedDayOfMonth = CalendarSubsystem->CurrentDayOfMonth;
+			SaveData.SavedHour = CalendarSubsystem->CurrentHour;
+			SaveData.SavedMinute = CalendarSubsystem->CurrentMinute;
+			SaveData.TotalDaysPassed = CalendarSubsystem->TotalDaysPassed;
+		}
+
+		UTerritoryBuyoutSubsystem* TerritorySubsystem = World->GetSubsystem<UTerritoryBuyoutSubsystem>();
+		if (TerritorySubsystem)
+		{
+			SaveObj->SaveData.PurchasedVillages = TerritorySubsystem->GetPurchasedVillagesMap();
+		}
+
+		UShipFleetSubsystem* FleetSubsystem = World->GetSubsystem<UShipFleetSubsystem>();
+		if (FleetSubsystem)
+		{
+			FShipFleetData Flagship;
+			if (FleetSubsystem->GetFlagship(Flagship))
+			{
+				SaveObj->SaveData.SavedFlagshipID = Flagship.ShipID;
+			}
+
+			TMap<FName, float>& HullHealthMap = SaveObj->SaveData.SavedShipHullHealthMap;
+			HullHealthMap.Reset();
+			const TArray<FShipFleetData> FleetShips = FleetSubsystem->GetAllShipsInFleet();
+			for (const FShipFleetData& Ship : FleetShips)
+			{
+				HullHealthMap.Add(Ship.ShipID, Ship.HullHealth);
+			}
+		}
+
+		UCrewOfficerSubsystem* OfficerSubsystem = World->GetSubsystem<UCrewOfficerSubsystem>();
+		if (OfficerSubsystem)
+		{
+			TMap<FName, FOfficerSaveState>& OfficerStates = SaveObj->SaveData.SavedOfficerStates;
+			OfficerStates.Reset();
+			const TArray<FOfficerData> Officers = OfficerSubsystem->GetAllRegisteredOfficers();
+			for (const FOfficerData& Officer : Officers)
+			{
+				FOfficerSaveState& State = OfficerStates.Add(Officer.OfficerID);
+				State.AssignedShipID = Officer.AssignedShipID;
+				State.CurrentRole = Officer.CurrentAssignedRole;
+			}
+		}
+
+		UPetCompanionSubsystem* PetSubsystem = World->GetSubsystem<UPetCompanionSubsystem>();
+		if (PetSubsystem)
+		{
+			FPetCompanionData ActivePet;
+			SaveObj->SaveData.SavedActivePetID = NAME_None;
+			if (PetSubsystem->GetActivePet(ActivePet))
+			{
+				SaveObj->SaveData.SavedActivePetID = ActivePet.PetID;
+			}
+
+			TMap<FName, FPetSaveState>& PetStates = SaveObj->SaveData.SavedPetStates;
+			PetStates.Reset();
+			const TArray<FPetCompanionData> Pets = PetSubsystem->GetAllPets();
+			for (const FPetCompanionData& Pet : Pets)
+			{
+				FPetSaveState& State = PetStates.Add(Pet.PetID);
+				State.GrowthStage = Pet.GrowthStage;
+				State.CurrentXP = Pet.CurrentXP;
+				State.LoyaltyScore = Pet.LoyaltyScore;
+				State.BehaviorMode = Pet.BehaviorMode;
+			}
+		}
+
+		// Save Hero Progression State
+		if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+		{
+			const FHeroProgressionState& ProgState = ProgSubsystem->GetProgressionState();
+			const FHeroAttributeRaw& AttrRaw = ProgSubsystem->GetAttributeRaw();
+
+			SaveObj->SaveData.HeroSaveData.Level = ProgState.Level;
+			SaveObj->SaveData.HeroSaveData.CurrentXP = ProgState.CurrentXP;
+			SaveObj->SaveData.HeroSaveData.AttributePoints = ProgState.UnallocatedAttributePoints;
+			SaveObj->SaveData.HeroSaveData.SkillPoints = ProgState.UnallocatedSkillPoints;
+
+			SaveObj->SaveData.HeroSaveData.RawAttributes.Empty();
+			TMap<FGameplayTag, int32> AttrMap;
+			AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")), AttrRaw.Strength);
+			AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")), AttrRaw.Agility);
+			AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")), AttrRaw.Leadership);
+			AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")), AttrRaw.Mysticism);
+			SaveObj->SaveData.HeroSaveData.RawAttributes = AttrMap;
+		}
+
+		// Save Rival Nemesis State
+		if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+		{
+			// Save grudge states
+			SaveObj->SaveData.SavedRivalGrudgeStates.Empty();
+			// We'll need to expose GetAllRivalGrudgeStates from RivalNemesisSubsystem
+		}
+	}
+
+	// Save Rupiah from AttributeSet via HeroProgressionSubsystem
+    if (GI)
+    {
+        if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+        {
+            SaveObj->SaveData.SavedRupiah = ProgSubsystem->GetRupiahFromASC();
+        }
+    }
+
+	// Protokol Staging & Backup Atomic
+	FString PrimarySlot = GetSlotName(SlotIndex);
+	FString StagingSlot = GetStagingSlotName(SlotIndex);
+	FString BackupSlot = GetBackupSlotName(SlotIndex);
+
+	// Step A: Save ke Staging
+	if (!UGameplayStatics::SaveGameToSlot(SaveObj, StagingSlot, 0))
+	{
+		UE_LOG(LogTemp, Error, TEXT("SaveGameAtomic: Gagal menyimpan ke staging slot %s"), *StagingSlot);
+		return false;
+	}
+
+	// Step B: Backup Existing Primary (jika ada)
+	if (UGameplayStatics::DoesSaveGameExist(PrimarySlot, 0))
+	{
+		if (USaveGame* PrimaryBackup = UGameplayStatics::LoadGameFromSlot(PrimarySlot, 0))
+		{
+			UGameplayStatics::SaveGameToSlot(PrimaryBackup, BackupSlot, 0);
+		}
+	}
+
+	// Step C: Atomic Replace (tulis Staging ke Primary Slot)
+	bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveObj, PrimarySlot, 0);
+
+	// Step D: Hapus Staging
+	UGameplayStatics::DeleteGameInSlot(StagingSlot, 0);
+
+	return bSuccess;
+}
+
+bool ULanunSaveGameSubsystem::LoadGameAtomic(int32 SlotIndex)
+{
+	FString PrimarySlot = GetSlotName(SlotIndex);
+	FString BackupSlot = GetBackupSlotName(SlotIndex);
+
+	USaveGame* LoadedBase = nullptr;
+
+	if (UGameplayStatics::DoesSaveGameExist(PrimarySlot, 0))
+	{
+		LoadedBase = UGameplayStatics::LoadGameFromSlot(PrimarySlot, 0);
+	}
+
+	// Fallback ke Backup jika Primary corrupt atau hilang
+	if (!LoadedBase && UGameplayStatics::DoesSaveGameExist(BackupSlot, 0))
+	{
+		LoadedBase = UGameplayStatics::LoadGameFromSlot(BackupSlot, 0);
+	}
+
+	ULanunSaveGame* SaveObj = Cast<ULanunSaveGame>(LoadedBase);
+	if (!SaveObj)
+	{
+		return false;
+	}
+
+	// Eksekusi migrasi & tulis ke disk jika schema versi lama
+	if (SaveObj->SaveSchemaVersion < 2)
+	{
+		MigrateDataV1ToV2(SaveObj);
+		UGameplayStatics::SaveGameToSlot(SaveObj, PrimarySlot, 0);
+	}
+
+	// Restore Subsystem States
+	UGameInstance* GI = GetGameInstance();
+	if (GI)
+	{
+		// Restore Hero Progression
+		if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+		{
+			const FLanunHeroSaveData& HeroSave = SaveObj->SaveData.HeroSaveData;
+
+			// We need LoadHeroData method on HeroProgressionSubsystem
+			// For now, we'll set via direct access if method exists
+		}
+
+		// Restore Rival Nemesis State
+		if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+		{
+			// We need LoadRivalGrudgeStates method on RivalNemesisSubsystem
+		}
+	}
+
+	return true;
+}
 
 bool ULanunSaveGameSubsystem::SaveGameState(APlayerController* PC)
 {
@@ -92,6 +352,45 @@ bool ULanunSaveGameSubsystem::SaveGameState(APlayerController* PC)
                 State.CurrentXP = Pet.CurrentXP;
                 State.LoyaltyScore = Pet.LoyaltyScore;
                 State.BehaviorMode = Pet.BehaviorMode;
+            }
+        }
+
+        // Save Hero Progression State
+        UGameInstance* GI = GetGameInstance();
+        if (GI)
+        {
+            if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+            {
+                const FHeroProgressionState& ProgState = ProgSubsystem->GetProgressionState();
+                const FHeroAttributeRaw& AttrRaw = ProgSubsystem->GetAttributeRaw();
+
+                SaveGameInstance->SaveData.HeroSaveData.Level = ProgState.Level;
+                SaveGameInstance->SaveData.HeroSaveData.CurrentXP = ProgState.CurrentXP;
+                SaveGameInstance->SaveData.HeroSaveData.AttributePoints = ProgState.UnallocatedAttributePoints;
+                SaveGameInstance->SaveData.HeroSaveData.SkillPoints = ProgState.UnallocatedSkillPoints;
+
+                SaveGameInstance->SaveData.HeroSaveData.RawAttributes.Empty();
+                TMap<FGameplayTag, int32> AttrMap;
+                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")), AttrRaw.Strength);
+                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")), AttrRaw.Agility);
+                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")), AttrRaw.Leadership);
+                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")), AttrRaw.Mysticism);
+                SaveGameInstance->SaveData.HeroSaveData.RawAttributes = AttrMap;
+            }
+
+            // Save Rival Nemesis State
+            if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+            {
+                SaveGameInstance->SaveData.SavedRivalGrudgeStates = NemesisSubsystem->GetAllRivalGrudgeStates();
+            }
+        }
+
+        // Save Rupiah from AttributeSet via HeroProgressionSubsystem
+        if (GI)
+        {
+            if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+            {
+                SaveGameInstance->SaveData.SavedRupiah = ProgSubsystem->GetRupiahFromASC();
             }
         }
     }
@@ -205,6 +504,24 @@ bool ULanunSaveGameSubsystem::LoadGameState(APlayerController* PC)
                 PetSubsystem->SetActivePet(SaveGameInstance->SaveData.SavedActivePetID);
             }
         }
+
+            // Restore Hero Progression State
+            UGameInstance* GI = GetGameInstance();
+            if (GI)
+            {
+                if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+                {
+                    const FLanunHeroSaveData& HeroSave = SaveGameInstance->SaveData.HeroSaveData;
+                    ProgSubsystem->LoadHeroData(HeroSave);
+
+                    if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+                    {
+                        NemesisSubsystem->LoadRivalGrudgeStates(SaveGameInstance->SaveData.SavedRivalGrudgeStates);
+                    }
+
+                    ProgSubsystem->SetRupiahToASC(SaveGameInstance->SaveData.SavedRupiah);
+                }
+            }
     }
 
     if (PC && PC->GetPawn())

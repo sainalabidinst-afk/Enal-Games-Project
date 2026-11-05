@@ -6,10 +6,14 @@
 #include "CalendarWorldSubsystem.h"
 #include "CrewOfficerSubsystem.h"
 #include "PetCompanionSubsystem.h"
+#include "LanunAttributeSetBase.h"
+#include "LanunHeroSaveData.h"
+#include "RivalNemesisSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "LanunSaveGameSubsystem.generated.h"
 
 class APlayerController;
+class ULanunHeroProgressionSubsystem;
 
 UENUM(BlueprintType)
 enum class ECompanionLegacyStatus : uint8
@@ -58,6 +62,8 @@ struct FOfficerLegacyState
 	int32 LegacyBonusAppliedGeneration = 1;
 };
 
+/** Data progresi Hero untuk persistensi save/load — didefinisikan di LanunHeroSaveData.h. */
+
 USTRUCT(BlueprintType)
 struct FPetSaveState
 {
@@ -105,6 +111,10 @@ struct FLanunWorldSaveData
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player")
 	FRotator PlayerRotation = FRotator::ZeroRotator;
 
+	/** Dompet Rupiah terpusat (int64) — tersimpan permanen. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Currency|Rupiah")
+	int64 SavedRupiah = 0;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Territory")
 	TMap<FName, bool> PurchasedVillages;
 
@@ -122,6 +132,12 @@ struct FLanunWorldSaveData
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Pet")
 	TMap<FName, FPetSaveState> SavedPetStates;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hero|Save")
+	FLanunHeroSaveData HeroSaveData;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nemesis|Save")
+	TMap<FName, int32> SavedRivalGrudgeStates;
 
 	/** Array V1 (deprecated) — digunakan hanya selama migrasi dari save file lama. */
 	UPROPERTY()
@@ -158,11 +174,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Save System|Config")
 	int32 DefaultUserIndex = 0;
 
-	UFUNCTION(BlueprintCallable, Category = "Save System")
-	bool SaveGameState(APlayerController* PC);
+	/** Simpan game dengan protokol staging + backup atomic. */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Save")
+	bool SaveGameAtomic(int32 SlotIndex = 0);
 
+	/** Muat game dengan fallback ke backup jika primary corrupt. */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Save")
+	bool LoadGameAtomic(int32 SlotIndex = 0);
+
+	/** Simpan game state lengkap (kompatibel dengan kode lama). */
 	UFUNCTION(BlueprintCallable, Category = "Save System")
-	bool LoadGameState(APlayerController* PC);
+	bool SaveGameState(class APlayerController* PC);
+
+	/** Muat game state lengkap (kompatibel dengan kode lama). */
+	UFUNCTION(BlueprintCallable, Category = "Save System")
+	bool LoadGameState(class APlayerController* PC);
 
 	UFUNCTION(BlueprintPure, Category = "Save System")
 	bool DoesSaveSlotExist() const;
@@ -170,4 +196,10 @@ public:
 	/** Migrasi data save dari schema V1 ke V2. Dipanggil otomatis saat LoadGameState. */
 	UFUNCTION(BlueprintCallable, Category = "Save System|Migration")
 	void MigrateSaveDataSchema(ULanunSaveGame* SaveInstance);
+
+private:
+	FString GetSlotName(int32 SlotIndex) const;
+	FString GetBackupSlotName(int32 SlotIndex) const;
+	FString GetStagingSlotName(int32 SlotIndex) const;
+	void MigrateDataV1ToV2(ULanunSaveGame* SaveObj);
 };

@@ -130,6 +130,29 @@ bool ULanunAttributeSetBase::AllocateAttributePoint(EHeroAttributeType Attribute
         return false;
     }
 
+    // Cek hard cap 100 SEBELUM poin dipotong (mirip ULanunHeroProgressionSubsystem)
+    float CurrentValue = 0.0f;
+    switch (AttributeType)
+    {
+    case EHeroAttributeType::Strength:
+        CurrentValue = GetStrength();
+        break;
+    case EHeroAttributeType::Agility:
+        CurrentValue = GetAgility();
+        break;
+    case EHeroAttributeType::Leadership:
+        CurrentValue = GetLeadership();
+        break;
+    case EHeroAttributeType::Mysticism:
+        CurrentValue = GetMysticism();
+        break;
+    }
+
+    if (CurrentValue >= 100.0f)
+    {
+        return false;
+    }
+
     SetUnallocatedAttributePoints(GetUnallocatedAttributePoints() - 1.0f);
 
     switch (AttributeType)

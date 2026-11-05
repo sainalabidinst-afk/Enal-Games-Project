@@ -143,3 +143,53 @@ void ULanunHeroProgressionSubsystem::OnLevelUp(int32 NewLevel)
     ProgressionState.UnallocatedAttributePoints += 3;
     ProgressionState.UnallocatedSkillPoints += 1;
 }
+
+void ULanunHeroProgressionSubsystem::LoadHeroData(const FLanunHeroSaveData& SaveData)
+{
+    ProgressionState.Level = SaveData.Level;
+    ProgressionState.CurrentXP = SaveData.CurrentXP;
+    ProgressionState.UnallocatedAttributePoints = SaveData.AttributePoints;
+    ProgressionState.UnallocatedSkillPoints = SaveData.SkillPoints;
+    ProgressionState.XPToNextLevel = ULanunProgressionUtility::CalculateRequiredXPForLevel(SaveData.Level);
+    ProgressionState.TotalAttributePointsSpent = 0;
+    ProgressionState.TotalSkillPointsSpent = 0;
+
+    AttributeRaw.Strength = SaveData.RawAttributes.FindRef(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")));
+    AttributeRaw.Agility = SaveData.RawAttributes.FindRef(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")));
+    AttributeRaw.Leadership = SaveData.RawAttributes.FindRef(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")));
+    AttributeRaw.Mysticism = SaveData.RawAttributes.FindRef(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")));
+
+    ApplyAttributesToASC();
+}
+
+TMap<FGameplayTag, int32> ULanunHeroProgressionSubsystem::GetAllRawAttributes() const
+{
+    TMap<FGameplayTag, int32> AttrMap;
+    AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")), AttributeRaw.Strength);
+    AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")), AttributeRaw.Agility);
+    AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")), AttributeRaw.Leadership);
+    AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")), AttributeRaw.Mysticism);
+    return AttrMap;
+}
+
+TArray<FGameplayTag> ULanunHeroProgressionSubsystem::GetUnlockedSkills() const
+{
+    return TArray<FGameplayTag>();
+}
+
+int64 ULanunHeroProgressionSubsystem::GetRupiahFromASC() const
+{
+    if (CachedAttributeSet)
+    {
+        return CachedAttributeSet->GetRupiah();
+    }
+    return 0;
+}
+
+void ULanunHeroProgressionSubsystem::SetRupiahToASC(int64 Amount)
+{
+    if (CachedAttributeSet)
+    {
+        CachedAttributeSet->AddRupiah(Amount);
+    }
+}

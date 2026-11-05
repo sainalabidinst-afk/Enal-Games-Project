@@ -112,6 +112,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Lanun|Nemesis")
 	static ERivalRelationshipState GetRelationshipStateFromGrudge(int32 GrudgeScore);
 
+	/** Ambil semua skor grudge rival untuk persistensi save/load. */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Nemesis|Save")
+	TMap<FName, int32> GetAllRivalGrudgeStates() const;
+
+	/** Muat semua skor grudge rival dari save file. */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Nemesis|Save")
+	void LoadRivalGrudgeStates(const TMap<FName, int32>& GrudgeStates);
+
 private:
 	UPROPERTY()
 	TMap<FName, FRivalProfile> RivalRegistry;

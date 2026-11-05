@@ -59,7 +59,7 @@ struct FPortMarketData
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMarketPricesUpdated, FName, PortID);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCommodityTraded, FName, PortID, ECommodityType, Commodity, int32, Quantity, float, TotalGoldTransaction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnCommodityTraded, FName, PortID, ECommodityType, Commodity, int32, Quantity, int64, TotalRupiahTransaction);
 
 UCLASS()
 class TIDES_OF_NUSANTARA_API UTradeEconomySubsystem : public UWorldSubsystem
@@ -88,10 +88,10 @@ public:
     float GetEffectiveSellPrice(FName PortID, ECommodityType Commodity) const;
 
     UFUNCTION(BlueprintCallable, Category = "Trade Economy")
-    bool BuyCommodityFromPort(FName PortID, ECommodityType Commodity, int32 Quantity, UPARAM(ref) float& PlayerGold, int32& OutPurchasedQuantity);
+    bool BuyCommodityFromPort(FName PortID, ECommodityType Commodity, int32 Quantity, UPARAM(ref) int64& PlayerRupiah, int32& OutPurchasedQuantity);
 
     UFUNCTION(BlueprintCallable, Category = "Trade Economy")
-    bool SellCommodityToPort(FName PortID, ECommodityType Commodity, int32 Quantity, UPARAM(ref) float& PlayerGold, int32& OutSoldQuantity);
+    bool SellCommodityToPort(FName PortID, ECommodityType Commodity, int32 Quantity, UPARAM(ref) int64& PlayerRupiah, int32& OutSoldQuantity);
 
     UPROPERTY(BlueprintAssignable, Category = "Trade Economy|Events")
     FOnMarketPricesUpdated OnMarketPricesUpdated;

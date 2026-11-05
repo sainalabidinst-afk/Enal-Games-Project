@@ -68,7 +68,7 @@ float UTerritoryBuyoutSubsystem::CalculateEffectivePrice(FName VillageID, float 
     return Found->BasePrice * (1.0f - ClampedDiscount / 100.0f);
 }
 
-bool UTerritoryBuyoutSubsystem::CanPurchaseVillage(FName VillageID, float PlayerGold, float OfficerDiscountPercent, FText& OutReason) const
+bool UTerritoryBuyoutSubsystem::CanPurchaseVillage(FName VillageID, int64 PlayerRupiah, float OfficerDiscountPercent, FText& OutReason) const
 {
     const FVillageBuyoutData* Found = VillageRegistry.Find(VillageID);
     if (!Found)
@@ -95,10 +95,11 @@ bool UTerritoryBuyoutSubsystem::CanPurchaseVillage(FName VillageID, float Player
         return false;
     }
 
-    const float EffectivePrice = CalculateEffectivePrice(VillageID, OfficerDiscountPercent);
-    if (PlayerGold < EffectivePrice)
+    const double EffectivePriceDouble = CalculateEffectivePrice(VillageID, OfficerDiscountPercent);
+    const int64 EffectivePrice = FMath::FloorToInt64(EffectivePriceDouble);
+    if (PlayerRupiah < EffectivePrice)
     {
-        OutReason = NSLOCTEXT("TerritoryErr", "InsufficientGold", "Emas / Koin Real tidak mencukupi untuk transaksi ini.");
+        OutReason = NSLOCTEXT("TerritoryErr", "InsufficientRupiah", "Rupiah tidak mencukupi untuk transaksi ini.");
         return false;
     }
 
@@ -106,10 +107,10 @@ bool UTerritoryBuyoutSubsystem::CanPurchaseVillage(FName VillageID, float Player
     return true;
 }
 
-bool UTerritoryBuyoutSubsystem::PurchaseVillage(FName VillageID, float& PlayerGold, float OfficerDiscountPercent)
+bool UTerritoryBuyoutSubsystem::PurchaseVillage(FName VillageID, int64& PlayerRupiah, float OfficerDiscountPercent)
 {
     FText FailReason;
-    if (!CanPurchaseVillage(VillageID, PlayerGold, OfficerDiscountPercent, FailReason))
+    if (!CanPurchaseVillage(VillageID, PlayerRupiah, OfficerDiscountPercent, FailReason))
     {
         return false;
     }
@@ -120,8 +121,9 @@ bool UTerritoryBuyoutSubsystem::PurchaseVillage(FName VillageID, float& PlayerGo
         return false;
     }
 
-    const float FinalPrice = CalculateEffectivePrice(VillageID, OfficerDiscountPercent);
-    PlayerGold -= FinalPrice;
+    const double FinalPriceDouble = CalculateEffectivePrice(VillageID, OfficerDiscountPercent);
+    const int64 FinalPrice = FMath::FloorToInt64(FinalPriceDouble);
+    PlayerRupiah -= FinalPrice;
     Found->bIsPurchased = true;
     OnVillagePurchased.Broadcast(VillageID, FinalPrice);
     return true;

@@ -70,7 +70,7 @@ public:
     TArray<FShipFleetData> GetAllShipsInFleet() const;
 
     UFUNCTION(BlueprintCallable, Category = "Fleet Management")
-    bool RepairShipHull(FName ShipID, float RepairPoints, UPARAM(ref) float& PlayerGold, float GoldCostPerPoint = 2.0f);
+    bool RepairShipHull(FName ShipID, float RepairPoints, UPARAM(ref) int64& PlayerRupiah, int64 RupiahCostPerPoint = 2);
 
     UPROPERTY(BlueprintAssignable, Category = "Fleet Management|Events")
     FOnFlagshipChanged OnFlagshipChanged;

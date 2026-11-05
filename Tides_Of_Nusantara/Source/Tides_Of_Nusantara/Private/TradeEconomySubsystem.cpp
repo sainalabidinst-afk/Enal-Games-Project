@@ -131,10 +131,10 @@ float UTradeEconomySubsystem::GetEffectiveSellPrice(FName PortID, ECommodityType
     return Item ? Item->CurrentSellPrice : 0.0f;
 }
 
-bool UTradeEconomySubsystem::BuyCommodityFromPort(FName PortID, ECommodityType Commodity, int32 Quantity, float& PlayerGold, int32& OutPurchasedQuantity)
+bool UTradeEconomySubsystem::BuyCommodityFromPort(FName PortID, ECommodityType Commodity, int32 Quantity, int64& PlayerRupiah, int32& OutPurchasedQuantity)
 {
     OutPurchasedQuantity = 0;
-    if (Quantity <= 0 || PlayerGold <= 0.0f)
+    if (Quantity <= 0 || PlayerRupiah <= 0)
     {
         return false;
     }
@@ -147,14 +147,15 @@ bool UTradeEconomySubsystem::BuyCommodityFromPort(FName PortID, ECommodityType C
     }
 
     int32 ActualQuantity = FMath::Min(Quantity, Item->StockQuantity);
-    ActualQuantity = FMath::Min(ActualQuantity, FMath::FloorToInt(PlayerGold / Item->CurrentBuyPrice));
+    ActualQuantity = FMath::Min(ActualQuantity, FMath::FloorToInt(static_cast<double>(PlayerRupiah) / Item->CurrentBuyPrice));
     if (ActualQuantity <= 0)
     {
         return false;
     }
 
-    const float TotalCost = Item->CurrentBuyPrice * ActualQuantity;
-    PlayerGold -= TotalCost;
+    const double TotalCostDouble = Item->CurrentBuyPrice * ActualQuantity;
+    const int64 TotalCost = FMath::FloorToInt64(TotalCostDouble);
+    PlayerRupiah -= TotalCost;
     Item->StockQuantity -= ActualQuantity;
     OutPurchasedQuantity = ActualQuantity;
 
@@ -163,7 +164,7 @@ bool UTradeEconomySubsystem::BuyCommodityFromPort(FName PortID, ECommodityType C
     return true;
 }
 
-bool UTradeEconomySubsystem::SellCommodityToPort(FName PortID, ECommodityType Commodity, int32 Quantity, float& PlayerGold, int32& OutSoldQuantity)
+bool UTradeEconomySubsystem::SellCommodityToPort(FName PortID, ECommodityType Commodity, int32 Quantity, int64& PlayerRupiah, int32& OutSoldQuantity)
 {
     OutSoldQuantity = 0;
     if (Quantity <= 0)
@@ -185,8 +186,9 @@ bool UTradeEconomySubsystem::SellCommodityToPort(FName PortID, ECommodityType Co
         return false;
     }
 
-    const float TotalPayout = Item->CurrentSellPrice * ActualQuantity;
-    PlayerGold += TotalPayout;
+    const double TotalPayoutDouble = Item->CurrentSellPrice * ActualQuantity;
+    const int64 TotalPayout = FMath::FloorToInt64(TotalPayoutDouble);
+    PlayerRupiah += TotalPayout;
     Item->StockQuantity += ActualQuantity;
     OutSoldQuantity = ActualQuantity;
 

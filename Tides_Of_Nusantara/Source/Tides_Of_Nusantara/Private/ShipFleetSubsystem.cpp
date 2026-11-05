@@ -85,30 +85,32 @@ TArray<FShipFleetData> UShipFleetSubsystem::GetAllShipsInFleet() const
     return Result;
 }
 
-bool UShipFleetSubsystem::RepairShipHull(FName ShipID, float RepairPoints, float& PlayerGold, float GoldCostPerPoint)
+bool UShipFleetSubsystem::RepairShipHull(FName ShipID, float RepairPoints, int64& PlayerRupiah, int64 RupiahCostPerPoint)
 {
     FShipFleetData* Ship = FleetRegistry.Find(ShipID);
-    if (!Ship || RepairPoints <= 0.0f || GoldCostPerPoint <= 0.0f || Ship->HullHealth >= Ship->MaxHullHealth)
+    if (!Ship || RepairPoints <= 0.0f || RupiahCostPerPoint <= 0 || Ship->HullHealth >= Ship->MaxHullHealth)
     {
         return false;
     }
 
     const float NeededHealth = Ship->MaxHullHealth - Ship->HullHealth;
     float ActualRepair = FMath::Min(RepairPoints, NeededHealth);
-    float TotalCost = ActualRepair * GoldCostPerPoint;
+    double TotalCostDouble = static_cast<double>(ActualRepair) * static_cast<double>(RupiahCostPerPoint);
+    int64 TotalCost = FMath::FloorToInt64(TotalCostDouble);
 
-    if (PlayerGold < TotalCost)
+    if (PlayerRupiah < TotalCost)
     {
-        ActualRepair = PlayerGold / GoldCostPerPoint;
+        ActualRepair = static_cast<float>(static_cast<double>(PlayerRupiah) / static_cast<double>(RupiahCostPerPoint));
         if (ActualRepair <= 0.0f)
         {
             return false;
         }
 
-        TotalCost = ActualRepair * GoldCostPerPoint;
+        TotalCostDouble = static_cast<double>(ActualRepair) * static_cast<double>(RupiahCostPerPoint);
+        TotalCost = FMath::FloorToInt64(TotalCostDouble);
     }
 
-    PlayerGold -= TotalCost;
+    PlayerRupiah -= TotalCost;
     Ship->HullHealth = FMath::Clamp(Ship->HullHealth + ActualRepair, 0.0f, Ship->MaxHullHealth);
     OnShipRepaired.Broadcast(ShipID, Ship->HullHealth);
     return true;

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LanunAttributeSetBase.h"
+#include "LanunHeroSaveData.h"
 #include "LanunHeroProgressionSubsystem.generated.h"
 
 USTRUCT(BlueprintType)
@@ -89,6 +90,26 @@ public:
     /** Terapkan nilai atribut raw ke ULanunAttributeSetBase (ASC). */
     UFUNCTION(BlueprintCallable, Category = "Hero|Progression")
     void ApplyAttributesToASC() const;
+
+    /** Muat data progresi Hero dari save file. */
+    UFUNCTION(BlueprintCallable, Category = "Hero|Progression|Save")
+    void LoadHeroData(const FLanunHeroSaveData& SaveData);
+
+    /** Ambil semua atribut raw sebagai map untuk persistensi. */
+    UFUNCTION(BlueprintCallable, Category = "Hero|Attributes")
+    TMap<FGameplayTag, int32> GetAllRawAttributes() const;
+
+    /** Ambil daftar skill yang ter-unlock untuk persistensi. */
+    UFUNCTION(BlueprintCallable, Category = "Hero|Progression|Save")
+    TArray<FGameplayTag> GetUnlockedSkills() const;
+
+    /** Ambil nilai Rupiah dari AttributeSet yang dicache. */
+    UFUNCTION(BlueprintCallable, Category = "Currency|Rupiah")
+    int64 GetRupiahFromASC() const;
+
+    /** Set nilai Rupiah ke AttributeSet yang dicache. */
+    UFUNCTION(BlueprintCallable, Category = "Currency|Rupiah")
+    void SetRupiahToASC(int64 Amount);
 
 private:
     void OnLevelUp(int32 NewLevel);

@@ -62,3 +62,25 @@ ERivalRelationshipState URivalNemesisSubsystem::GetRelationshipStateFromGrudge(i
 	}
 	return ERivalRelationshipState::Unmet;
 }
+
+TMap<FName, int32> URivalNemesisSubsystem::GetAllRivalGrudgeStates() const
+{
+	TMap<FName, int32> GrudgeStates;
+	for (const TPair<FName, FRivalProfile>& Pair : RivalRegistry)
+	{
+		GrudgeStates.Add(Pair.Key, Pair.Value.GrudgeScore);
+	}
+	return GrudgeStates;
+}
+
+void URivalNemesisSubsystem::LoadRivalGrudgeStates(const TMap<FName, int32>& GrudgeStates)
+{
+	RivalRegistry.Empty();
+	for (const TPair<FName, int32>& Pair : GrudgeStates)
+	{
+		FRivalProfile& Profile = RivalRegistry.Add(Pair.Key);
+		Profile.CaptainID = Pair.Key;
+		Profile.State = GetRelationshipStateFromGrudge(Pair.Value);
+		Profile.GrudgeScore = Pair.Value;
+	}
+}
