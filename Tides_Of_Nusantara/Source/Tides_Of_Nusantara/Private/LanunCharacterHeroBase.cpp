@@ -75,6 +75,11 @@ void ALanunCharacterHeroBase::SetupPlayerInputComponent(UInputComponent* PlayerI
     {
         EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ALanunCharacterHeroBase::InteractInput);
     }
+
+    if (ParryAction)
+    {
+        EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &ALanunCharacterHeroBase::ParryInput);
+    }
 }
 
 void ALanunCharacterHeroBase::Move(const FInputActionValue& Value)
@@ -135,6 +140,40 @@ void ALanunCharacterHeroBase::InteractWithShip(AShipPawnBase* TargetShip)
 void ALanunCharacterHeroBase::InteractInput()
 {
     // Input handler for Interact action. Override or extend to find nearby ship target.
+}
+
+void ALanunCharacterHeroBase::ParryInput()
+{
+    // Trigger Tangkas Salawaku parry ability via AbilitySystemComponent
+    if (AbilitySystemComponent)
+    {
+        // Ability activation handled by AbilitySystemComponent input binding
+        // This can also trigger gameplay events directly if needed
+    }
+}
+
+void ALanunCharacterHeroBase::DisembarkFromShip()
+{
+    // Find current ship pawn we are possessing
+    AShipPawnBase* CurrentShip = Cast<AShipPawnBase>(GetPawn());
+    if (!CurrentShip)
+    {
+        return;
+    }
+
+    if (ALanunPlayerController* PC = Cast<ALanunPlayerController>(GetController()))
+    {
+        PC->UnPossess();
+        PC->Possess(this);
+
+        PC->EnableOnFootContext();
+
+        // Move hero to disembark location
+        if (USceneComponent* DisembarkComp = CurrentShip->GetDisembarkLocationComponent())
+        {
+            SetActorLocationAndRotation(DisembarkComp->GetComponentLocation(), DisembarkComp->GetComponentRotation());
+        }
+    }
 }
 
 void ALanunCharacterHeroBase::UpdateSwimmingBuoyancyPhysics()

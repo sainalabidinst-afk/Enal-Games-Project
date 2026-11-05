@@ -47,14 +47,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
     UInputAction* InteractAction;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    UInputAction* ParryAction;
+
     void Move(const FInputActionValue& Value);
     void Look(const FInputActionValue& Value);
 
     UFUNCTION(BlueprintCallable, Category = "Interaction")
     void InteractWithShip(AShipPawnBase* TargetShip);
 
+    UFUNCTION(BlueprintCallable, Category = "Interaction")
+    void DisembarkFromShip();
+
     UFUNCTION()
     void InteractInput();
+
+    UFUNCTION()
+    void ParryInput();
 
 protected:
     void UpdateSwimmingBuoyancyPhysics();
