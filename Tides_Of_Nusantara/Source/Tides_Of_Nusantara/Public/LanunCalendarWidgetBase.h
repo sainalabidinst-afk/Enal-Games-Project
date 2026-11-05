@@ -5,9 +5,9 @@
 #include "CalendarWorldSubsystem.h"
 #include "LanunCalendarWidgetBase.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDayChanged, int32, NewDay);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHourChanged, int32, NewHour, int32, NewMinute);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMaintenanceDue, int64, Amount);
+// Gunakan nama unik untuk delegate widget agar tidak tabrakan UHT signature
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCalendarWidgetDayChanged, int32, NewDay);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCalendarWidgetHourChanged, int32, NewHour, int32, NewMinute);
 
 /**
  * Base class untuk UI Kalender & Maintenance.
@@ -51,11 +51,11 @@ public:
 
 	/** Ambil nama hari dalam Bahasa Indonesia. */
 	UFUNCTION(BlueprintCallable, Category = "Lanun|UI|Calendar")
-	FText GetDayName() const;
+	FText GetDayNameText(int32 DayIndex) const;
 
 	/** Ambil musim angin saat ini. */
 	UFUNCTION(BlueprintCallable, Category = "Lanun|UI|Calendar")
-	TEnumAsByte<EMusimAngin> GetMusimAngin() const;
+	EMusimAngin GetMusimAngin() const;
 
 	/** Ambil estimasi biaya maintenance mingguan (benteng + tambang + rute). */
 	UFUNCTION(BlueprintCallable, Category = "Lanun|UI|Calendar")
@@ -65,17 +65,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lanun|UI|Calendar")
 	void Refresh();
 
-	/** Event saat hari berubah. */
-	UPROPERTY(BlueprintAssignable, Category = "Lanun|UI|Events")
-	FOnDayChanged OnDayChanged;
+	/** Event saat hari berubah (widget-specific). */
+	UPROPERTY(BlueprintAssignable, Category = "Lanun|UI|Calendar")
+	FOnCalendarWidgetDayChanged OnWidgetDayChanged;
 
-	/** Event saat jam berubah. */
-	UPROPERTY(BlueprintAssignable, Category = "Lanun|UI|Events")
-	FOnHourChanged OnHourChanged;
-
-	/** Event saat maintenance mingguan berubah. */
-	UPROPERTY(BlueprintAssignable, Category = "Lanun|UI|Events")
-	FOnMaintenanceDue OnMaintenanceDue;
+	/** Event saat jam berubah (widget-specific). */
+	UPROPERTY(BlueprintAssignable, Category = "Lanun|UI|Calendar")
+	FOnCalendarWidgetHourChanged OnWidgetHourChanged;
 
 protected:
 	/** Referensi ke Calendar Subsystem. */

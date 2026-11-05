@@ -1,5 +1,6 @@
 #include "LanunCalendarWidgetBase.h"
-#include "Internationalization/Regex.h"
+
+#define LOCTEXT_NAMESPACE "LanunCalendarUI"
 
 ULanunCalendarWidgetBase::ULanunCalendarWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -42,9 +43,9 @@ int32 ULanunCalendarWidgetBase::GetDayOfWeek() const
 	return CachedCalendarSubsystem ? CachedCalendarSubsystem->GetDayOfWeek() : 0;
 }
 
-FText ULanunCalendarWidgetBase::GetDayName() const
+FText ULanunCalendarWidgetBase::GetDayNameText(int32 DayIndex) const
 {
-	switch (GetDayOfWeek())
+	switch (DayIndex % 7)
 	{
 	case 0: return LOCTEXT("Senin", "Senin");
 	case 1: return LOCTEXT("Selasa", "Selasa");
@@ -57,7 +58,7 @@ FText ULanunCalendarWidgetBase::GetDayName() const
 	}
 }
 
-TEnumAsByte<EMusimAngin> ULanunCalendarWidgetBase::GetMusimAngin() const
+EMusimAngin ULanunCalendarWidgetBase::GetMusimAngin() const
 {
 	return CachedCalendarSubsystem ? CachedCalendarSubsystem->GetMusimAngin() : EMusimAngin::MusonBarat;
 }
@@ -77,21 +78,20 @@ void ULanunCalendarWidgetBase::Refresh()
 	if (GetDayOfMonth() != LastDayOfMonth)
 	{
 		LastDayOfMonth = GetDayOfMonth();
-		OnDayChanged.Broadcast(LastDayOfMonth);
+		OnWidgetDayChanged.Broadcast(LastDayOfMonth);
 	}
 
 	if (GetHour() != LastHour || GetMinute() != LastMinute)
 	{
 		LastHour = GetHour();
 		LastMinute = GetMinute();
-		OnHourChanged.Broadcast(LastHour, LastMinute);
+		OnWidgetHourChanged.Broadcast(LastHour, LastMinute);
 	}
 
 	const int64 MaintenanceCost = GetWeeklyMaintenanceCost();
 	if (MaintenanceCost != LastMaintenanceCost)
 	{
 		LastMaintenanceCost = MaintenanceCost;
-		OnMaintenanceDue.Broadcast(LastMaintenanceCost);
 	}
 }
 
@@ -100,3 +100,5 @@ void ULanunCalendarWidgetBase::NativeTick(const FGeometry& MyGeometry, float InD
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	Refresh();
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -2,6 +2,8 @@
 #include "LanunAttributeSetBase.h"
 #include "Internationalization/Regex.h"
 
+#define LOCTEXT_NAMESPACE "LanunWalletUI"
+
 ULanunWalletWidgetBase::ULanunWalletWidgetBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -43,3 +45,5 @@ void ULanunWalletWidgetBase::NativeTick(const FGeometry& MyGeometry, float InDel
 	Super::NativeTick(MyGeometry, InDeltaTime);
 	Refresh();
 }
+
+#undef LOCTEXT_NAMESPACE

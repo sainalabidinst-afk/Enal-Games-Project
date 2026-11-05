@@ -154,8 +154,12 @@ void ALanunCharacterHeroBase::ParryInput()
 
 void ALanunCharacterHeroBase::DisembarkFromShip()
 {
-    // Find current ship pawn we are possessing
-    AShipPawnBase* CurrentShip = Cast<AShipPawnBase>(GetPawn());
+    // Find current ship pawn we are possessing via controller
+    AShipPawnBase* CurrentShip = nullptr;
+    if (AController* HeroController = GetController())
+    {
+        CurrentShip = Cast<AShipPawnBase>(HeroController->GetPawn());
+    }
     if (!CurrentShip)
     {
         return;
