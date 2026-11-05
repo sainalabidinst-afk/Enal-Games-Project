@@ -1,5 +1,4 @@
 #include "ShipMovementComponent.h"
-#include "ShipMovementComponent.h"
 #include "CalendarWorldSubsystem.h"
 #include "Components/PrimitiveComponent.h"
 #include "CrewOfficerSubsystem.h"

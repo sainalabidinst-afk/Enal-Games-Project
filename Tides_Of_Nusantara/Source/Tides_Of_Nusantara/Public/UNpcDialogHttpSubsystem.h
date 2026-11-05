@@ -18,7 +18,7 @@ UENUM(BlueprintType)
 enum class ENpcFactionType : uint8
 {
     PelautBebas,
-    VOC_Dutch,
+    KongsiDagangBarat,
     Kesultanan,
     Masyarakat,
     BajakLaut

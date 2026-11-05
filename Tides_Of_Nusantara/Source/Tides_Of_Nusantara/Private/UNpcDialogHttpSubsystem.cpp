@@ -22,7 +22,7 @@ FString UNpcDialogHttpSubsystem::BuildSystemPrompt(const FNpcDialogContext& Cont
     switch (Context.Faction)
     {
     case ENpcFactionType::PelautBebas:   FactionDescription = TEXT("seorang pelaut bebas di Nusantara"); break;
-    case ENpcFactionType::VOC_Dutch:     FactionDescription = TEXT("perwakilan Komisi Dagang VOC Belanda"); break;
+    case ENpcFactionType::KongsiDagangBarat:    FactionDescription = TEXT("perwakilan Kongsi Dagang Barat"); break;
     case ENpcFactionType::Kesultanan:    FactionDescription = TEXT("warga kesultanan Nusantara"); break;
     case ENpcFactionType::Masyarakat:    FactionDescription = TEXT("warga masyarakat pesisir Nusantara"); break;
     case ENpcFactionType::BajakLaut:     FactionDescription = TEXT("bajak laut di perairan Nusantara"); break;

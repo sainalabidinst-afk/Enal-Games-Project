@@ -9,7 +9,7 @@
 class ALanunCharacterHeroBase;
 
 UENUM(BlueprintType)
-enum class EBordState : uint8
+enum class EShipBoardState : uint8
 {
     None,
     Grappling,
@@ -54,7 +54,7 @@ public:
 	FName ShipID = NAME_None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boarding")
-	EBordState BoardState = EBordState::None;
+	EShipBoardState BoardState = EShipBoardState::None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boarding")
 	AShipPawnBase* GrapplingTarget = nullptr;
@@ -102,7 +102,7 @@ public:
 	UShipMovementComponent* GetShipMovementComponent() const { return ShipMovementComponent; }
 
 	UFUNCTION(BlueprintPure, Category = "Ship|State")
-	EBordState GetBoardState() const { return BoardState; }
+	EShipBoardState GetBoardState() const { return BoardState; }
 
 	UPROPERTY(BlueprintAssignable, Category = "Boarding|Events")
 	FOnBoardingStarted OnBoardingStarted;

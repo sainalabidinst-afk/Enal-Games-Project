@@ -11,7 +11,7 @@ UENUM(BlueprintType)
 enum class ELanunFaction : uint8
 {
     PelautBebas,
-    VOC_Dutch,
+    KongsiDagangBarat,
     Kesultanan,
     Masyarakat
 };
@@ -40,7 +40,7 @@ public:
     ULanunAttributeSetBase* AttributeSet;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Faction")
-    ELanunFaction Faction = ELanunFaction::VOC_Dutch;
+    ELanunFaction Faction = ELanunFaction::KongsiDagangBarat;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI|Combat", meta = (ClampMin = "0.0"))
     float BaseAttackRange = 180.0f;

@@ -49,12 +49,12 @@ bool ALanunAIController::IsHostileTowards(ELanunFaction OtherFaction) const
 {
     switch (MyFaction)
     {
-    case ELanunFaction::VOC_Dutch:
+    case ELanunFaction::KongsiDagangBarat:
         return OtherFaction == ELanunFaction::PelautBebas || OtherFaction == ELanunFaction::Kesultanan;
     case ELanunFaction::PelautBebas:
-        return OtherFaction == ELanunFaction::VOC_Dutch;
+        return OtherFaction == ELanunFaction::KongsiDagangBarat;
     case ELanunFaction::Kesultanan:
-        return OtherFaction == ELanunFaction::VOC_Dutch;
+        return OtherFaction == ELanunFaction::KongsiDagangBarat;
     default:
         return false;
     }

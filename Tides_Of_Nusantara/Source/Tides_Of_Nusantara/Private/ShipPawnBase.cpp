@@ -37,7 +37,7 @@ void AShipPawnBase::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (BoardState == EBordState::Grappling && GrapplingTarget)
+    if (BoardState == EShipBoardState::Grappling && GrapplingTarget)
     {
         const FVector CurrentLoc = GetActorLocation();
         const FVector TargetLoc = GrapplingTarget->GetActorLocation();
@@ -51,7 +51,7 @@ void AShipPawnBase::Tick(float DeltaTime)
         }
         else
         {
-            BoardState = EBordState::Boarded;
+            BoardState = EShipBoardState::Boarded;
             OnBoardingEnded.Broadcast(ShipID, true);
         }
     }
@@ -159,7 +159,7 @@ bool AShipPawnBase::GrappleShip(AShipPawnBase* TargetShip)
         return false;
     }
 
-    if (BoardState != EBordState::None)
+    if (BoardState != EShipBoardState::None)
     {
         return false;
     }
@@ -170,7 +170,7 @@ bool AShipPawnBase::GrappleShip(AShipPawnBase* TargetShip)
         return false;
     }
 
-    BoardState = EBordState::Grappling;
+    BoardState = EShipBoardState::Grappling;
     GrapplingTarget = TargetShip;
     OnBoardingStarted.Broadcast(TargetShip->ShipID, TargetShip);
     return true;
@@ -178,12 +178,12 @@ bool AShipPawnBase::GrappleShip(AShipPawnBase* TargetShip)
 
 bool AShipPawnBase::BoardShip()
 {
-    if (BoardState != EBordState::Grappling || !GrapplingTarget)
+    if (BoardState != EShipBoardState::Grappling || !GrapplingTarget)
     {
         return false;
     }
 
-    BoardState = EBordState::Boarded;
+    BoardState = EShipBoardState::Boarded;
     OnBoardingEnded.Broadcast(ShipID, true);
     return true;
 }
@@ -204,7 +204,7 @@ void AShipPawnBase::DisembarkFromBoarding(ALanunCharacterHeroBase* HeroCharacter
     }
     HeroCharacter->SetActorLocation(DisembarkLocation);
 
-    BoardState = EBordState::None;
+    BoardState = EShipBoardState::None;
     GrapplingTarget = nullptr;
     OnBoardingEnded.Broadcast(ShipID, true);
 

@@ -269,7 +269,7 @@ bool UNavalCombatSubsystem::InitiateBoarding(FName BoardingShipID, FName TargetS
         return false;
     }
 
-    if (BoardingShip->GetBoardState() != EBordState::None)
+    if (BoardingShip->GetBoardState() != EShipBoardState::None)
     {
         return false;
     }

@@ -11,7 +11,6 @@ ALanunCharacterHeroBase::ALanunCharacterHeroBase()
     PrimaryActorTick.bCanEverTick = true;
 
     AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
-    AbilitySystemComponent->SetIsReplicated(true);
     AbilitySystemComponent->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
     AttributeSet = CreateDefaultSubobject<ULanunAttributeSetBase>(TEXT("AttributeSet"));

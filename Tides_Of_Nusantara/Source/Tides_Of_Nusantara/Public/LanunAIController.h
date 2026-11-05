@@ -36,5 +36,5 @@ protected:
     UFUNCTION()
     void HandleTargetPerceived(AActor* Actor, FAIStimulus Stimulus);
 
-    ELanunFaction MyFaction = ELanunFaction::VOC_Dutch;
+    ELanunFaction MyFaction = ELanunFaction::KongsiDagangBarat;
 };
