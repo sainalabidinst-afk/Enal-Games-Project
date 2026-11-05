@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "LanunQuestData.h"
+#include "LanunQuestTypes.h"
 #include "LanunQuestSubsystem.generated.h"
 
 UCLASS()
@@ -17,6 +18,10 @@ public:
 	/** Register a quest data definition (called from Data Table import) */
 	UFUNCTION(BlueprintCallable, Category = "Lanun|Quest")
 	void RegisterQuestDefinition(const FLanunQuestData& QuestData);
+
+	/** Register quest definition from DataTable row (QuestData.csv import) */
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Quest")
+	void RegisterQuestFromDataRow(const FLanunQuestDataRow& RowData);
 
 	/** Get quest definition by ID */
 	UFUNCTION(BlueprintCallable, Category = "Lanun|Quest")

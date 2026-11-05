@@ -24,6 +24,63 @@ void ULanunQuestSubsystem::RegisterQuestDefinition(const FLanunQuestData& QuestD
 	}
 }
 
+void ULanunQuestSubsystem::RegisterQuestFromDataRow(const FLanunQuestDataRow& RowData)
+{
+	if (RowData.QuestID.IsNone())
+	{
+		return;
+	}
+
+	FLanunQuestData QuestData;
+	QuestData.QuestID = RowData.QuestID;
+	QuestData.QuestTitle = RowData.QuestTitle;
+	QuestData.QuestDescription = RowData.QuestDescription;
+	QuestData.QuestGiverNPCID = RowData.QuestGiverNPCID;
+	QuestData.StartLocationID = RowData.StartLocationID;
+	QuestData.MinLevel = RowData.MinLevel;
+
+	// Parse comma-separated prerequisite quest IDs
+	QuestData.PrerequisiteQuestIDs.Empty();
+	TArray<FString> PrereqStrings;
+	RowData.PrerequisiteQuestIDs.ParseIntoArray(PrereqStrings, TEXT(","), true);
+	for (const FString& PrereqStr : PrereqStrings)
+	{
+		if (!PrereqStr.IsEmpty())
+		{
+			QuestData.PrerequisiteQuestIDs.Add(FName(*PrereqStr));
+		}
+	}
+
+	// Build objectives from row data (simple single-objective quests from CSV)
+	QuestData.Objectives.Empty();
+	if (!RowData.QuestTitle.IsEmpty())
+	{
+		FQuestObjective Objective;
+		Objective.ObjectiveType = EQuestObjectiveType::TalkToNPC;
+		Objective.ObjectiveText = FText::FromString(TEXT("Complete: ") + RowData.QuestTitle.ToString());
+		Objective.TargetNPCID = RowData.QuestGiverNPCID;
+		Objective.RequiredAmount = 1;
+		Objective.CurrentAmount = 0;
+		Objective.bIsCompleted = false;
+		QuestData.Objectives.Add(Objective);
+	}
+
+	// Build rewards
+	QuestData.Rewards.RupiahReward = RowData.RewardRupiah;
+	QuestData.Rewards.XPReward = RowData.RewardXP;
+	QuestData.Rewards.AttributePointReward = RowData.RewardAttributePoints;
+	QuestData.Rewards.SkillPointReward = RowData.RewardSkillPoints;
+	QuestData.Rewards.UnlockSkillID = NAME_None;
+	QuestData.Rewards.FactionReputationChange = 0;
+	QuestData.Rewards.TerritoryPopularityChange = 0;
+	QuestData.Rewards.CrewLoyaltyChange = 0;
+
+	QuestData.CompletionTag = RowData.CompletionTag;
+	QuestData.bIsMainStory = RowData.bIsMainStory;
+
+	QuestDefinitions.Add(RowData.QuestID, QuestData);
+}
+
 bool ULanunQuestSubsystem::GetQuestDefinition(FName QuestID, FLanunQuestData& OutQuestData) const
 {
 	const FLanunQuestData* Found = QuestDefinitions.Find(QuestID);
