@@ -82,6 +82,20 @@ bool ULanunQuestSubsystem::StartQuest(FName QuestID, int32 CurrentDay)
 		return false;
 	}
 
+	// Batas maksimal 3 quest prosedural aktif dalam campaign single-player (grandesign.md line 516)
+	int32 ActiveCount = 0;
+	for (const TPair<FName, FLanunQuestSaveData>& Pair : QuestSaveData)
+	{
+		if (Pair.Value.State == EQuestState::InProgress)
+		{
+			++ActiveCount;
+		}
+	}
+	if (ActiveCount >= 3)
+	{
+		return false;
+	}
+
 	FLanunQuestSaveData& SaveData = QuestSaveData.FindOrAdd(QuestID);
 	SaveData.QuestID = QuestID;
 	SaveData.State = EQuestState::InProgress;
