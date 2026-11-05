@@ -38,3 +38,6 @@ Thumbs.db
 
 # Node modules (jika ada tool external)
 node_modules/
+
+# Gemini CLI settings (may contain secrets - push protection)
+.gemini/
