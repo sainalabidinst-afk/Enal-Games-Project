@@ -25,6 +25,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
+	// UTickableWorldSubsystem profiling
+	virtual TStatId GetStatId() const override
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(ULanunEncounterPacingSubsystem, STATGROUP_Tickables);
+	}
+
 	/** Jeda minimum antara encounter (detik). Default 90 detik. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Encounter|Pacing", meta = (ClampMin = "0.0"))
 	float EncounterCooldownSeconds = 90.0f;
