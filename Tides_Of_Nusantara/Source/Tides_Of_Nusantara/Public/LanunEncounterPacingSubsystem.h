@@ -74,4 +74,11 @@ private:
 	float TimeSinceLastEncounter = 0.0f;
 	int32 ActiveEncounterCount = 0;
 	float LastEncounterTime = -9999.0f;
+
+	/** Posisi terakhir encounter dimulai, untuk pemicu jarak. */
+	FVector LastEncounterPosition = FVector::ZeroVector;
+	bool bHasEncounterPosition = false;
+
+	/** Ambil posisi kapal pemain saat ini. */
+	FVector GetPlayerShipPosition() const;
 };

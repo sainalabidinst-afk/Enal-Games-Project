@@ -33,6 +33,6 @@ protected:
 	UFUNCTION()
 	void OnParryWindowExpired();
 
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable, Category = "Lanun|Combat|Parry")
 	void OnSuccessfulParryTriggered(FGameplayTag EventTag, FGameplayEventData EventData);
 };

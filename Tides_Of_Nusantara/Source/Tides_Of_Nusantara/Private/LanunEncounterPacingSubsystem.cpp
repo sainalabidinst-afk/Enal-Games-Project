@@ -25,11 +25,35 @@ void ULanunEncounterPacingSubsystem::Tick(float DeltaTime)
 
 	TimeSinceLastEncounter += DeltaTime;
 
-	if (TimeSinceLastEncounter >= EncounterCooldownSeconds && ActiveEncounterCount < MaxSimultaneousEncounters)
+	const bool bTimeReady = TimeSinceLastEncounter >= EncounterCooldownSeconds;
+	const bool bDistanceReady = bHasEncounterPosition &&
+		(GetPlayerShipPosition() - LastEncounterPosition).Size() >= MinDistanceSinceLastEncounter;
+
+	if ((bTimeReady || bDistanceReady) && ActiveEncounterCount < MaxSimultaneousEncounters)
 	{
-		OnEncounterReady.Broadcast(EEncounterTriggerReason::TimeElapsed, TimeSinceLastEncounter);
+		const EEncounterTriggerReason Reason = bDistanceReady ? EEncounterTriggerReason::DistanceTraveled : EEncounterTriggerReason::TimeElapsed;
+		OnEncounterReady.Broadcast(Reason, TimeSinceLastEncounter);
 		TimeSinceLastEncounter = 0.0f;
+		bHasEncounterPosition = false;
 	}
+}
+
+FVector ULanunEncounterPacingSubsystem::GetPlayerShipPosition() const
+{
+	if (!GetWorld())
+	{
+		return FVector::ZeroVector;
+	}
+
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (APawn* Pawn = PC->GetPawn())
+		{
+			return Pawn->GetActorLocation();
+		}
+	}
+
+	return FVector::ZeroVector;
 }
 
 bool ULanunEncounterPacingSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
@@ -56,6 +80,8 @@ void ULanunEncounterPacingSubsystem::OnEncounterStarted()
 {
 	TimeSinceLastEncounter = 0.0f;
 	LastEncounterTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0f;
+	LastEncounterPosition = GetPlayerShipPosition();
+	bHasEncounterPosition = true;
 	++ActiveEncounterCount;
 }
 
