@@ -41,3 +41,6 @@ node_modules/
 
 # Gemini CLI settings (may contain secrets - push protection)
 .gemini/
+
+# Unreal Editor auto-generated external actor files
+Content/__ExternalActors__/
