@@ -10,6 +10,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "LanunHeroProgressionSubsystem.h"
 #include "RivalNemesisSubsystem.h"
+#include "LanunQuestSubsystem.h"
 #include "LanunAttributeSetBase.h"
 
 FString ULanunSaveGameSubsystem::GetSlotName(int32 SlotIndex) const
@@ -38,7 +39,6 @@ void ULanunSaveGameSubsystem::MigrateDataV1ToV2(ULanunSaveGame* SaveObj)
 
 	FLanunWorldSaveData& SaveData = SaveObj->SaveData;
 
-	// FIX BUG #6: Pemetaan variabel terpisah, tidak tertukar antara ShipID dan OfficerID
 	for (const FOfficerSaveState& OldData : SaveData.LegacyOfficers_DEPRECATED)
 	{
 		FOfficerLegacyState NewLegacyState;
@@ -147,8 +147,8 @@ bool ULanunSaveGameSubsystem::SaveGameAtomic(int32 SlotIndex)
 			}
 		}
 
-		// Save Hero Progression State
-		if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+		ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>();
+		if (ProgSubsystem)
 		{
 			const FHeroProgressionState& ProgState = ProgSubsystem->GetProgressionState();
 			const FHeroAttributeRaw& AttrRaw = ProgSubsystem->GetAttributeRaw();
@@ -167,37 +167,40 @@ bool ULanunSaveGameSubsystem::SaveGameAtomic(int32 SlotIndex)
 			SaveObj->SaveData.HeroSaveData.RawAttributes = AttrMap;
 		}
 
-		// Save Rival Nemesis State
-		if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+		URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>();
+		if (NemesisSubsystem)
 		{
-			// Save grudge states
-			SaveObj->SaveData.SavedRivalGrudgeStates.Empty();
-			// We'll need to expose GetAllRivalGrudgeStates from RivalNemesisSubsystem
+			SaveObj->SaveData.SavedRivalGrudgeStates = NemesisSubsystem->GetAllRivalGrudgeStates();
+		}
+
+		ULanunQuestSubsystem* QuestSubsystem = GI->GetSubsystem<ULanunQuestSubsystem>();
+		if (QuestSubsystem)
+		{
+			TArray<FLanunQuestSaveData> QuestSaveArray;
+			QuestSubsystem->SaveQuestState(QuestSaveArray);
+			for (const FLanunQuestSaveData& QuestData : QuestSaveArray)
+			{
+				SaveObj->SaveData.SavedQuestStates.Add(QuestData.QuestID, QuestData);
+			}
 		}
 	}
 
-	// Save Rupiah from AttributeSet via HeroProgressionSubsystem
-    if (GI)
-    {
-        if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
-        {
-            SaveObj->SaveData.SavedRupiah = ProgSubsystem->GetRupiahFromASC();
-        }
-    }
+	ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>();
+	if (ProgSubsystem)
+	{
+		SaveObj->SaveData.SavedRupiah = ProgSubsystem->GetRupiahFromASC();
+	}
 
-	// Protokol Staging & Backup Atomic
 	FString PrimarySlot = GetSlotName(SlotIndex);
 	FString StagingSlot = GetStagingSlotName(SlotIndex);
 	FString BackupSlot = GetBackupSlotName(SlotIndex);
 
-	// Step A: Save ke Staging
 	if (!UGameplayStatics::SaveGameToSlot(SaveObj, StagingSlot, 0))
 	{
 		UE_LOG(LogTemp, Error, TEXT("SaveGameAtomic: Gagal menyimpan ke staging slot %s"), *StagingSlot);
 		return false;
 	}
 
-	// Step B: Backup Existing Primary (jika ada)
 	if (UGameplayStatics::DoesSaveGameExist(PrimarySlot, 0))
 	{
 		if (USaveGame* PrimaryBackup = UGameplayStatics::LoadGameFromSlot(PrimarySlot, 0))
@@ -206,10 +209,8 @@ bool ULanunSaveGameSubsystem::SaveGameAtomic(int32 SlotIndex)
 		}
 	}
 
-	// Step C: Atomic Replace (tulis Staging ke Primary Slot)
 	bool bSuccess = UGameplayStatics::SaveGameToSlot(SaveObj, PrimarySlot, 0);
 
-	// Step D: Hapus Staging
 	UGameplayStatics::DeleteGameInSlot(StagingSlot, 0);
 
 	return bSuccess;
@@ -227,7 +228,6 @@ bool ULanunSaveGameSubsystem::LoadGameAtomic(int32 SlotIndex)
 		LoadedBase = UGameplayStatics::LoadGameFromSlot(PrimarySlot, 0);
 	}
 
-	// Fallback ke Backup jika Primary corrupt atau hilang
 	if (!LoadedBase && UGameplayStatics::DoesSaveGameExist(BackupSlot, 0))
 	{
 		LoadedBase = UGameplayStatics::LoadGameFromSlot(BackupSlot, 0);
@@ -239,30 +239,38 @@ bool ULanunSaveGameSubsystem::LoadGameAtomic(int32 SlotIndex)
 		return false;
 	}
 
-	// Eksekusi migrasi & tulis ke disk jika schema versi lama
 	if (SaveObj->SaveSchemaVersion < 2)
 	{
 		MigrateDataV1ToV2(SaveObj);
 		UGameplayStatics::SaveGameToSlot(SaveObj, PrimarySlot, 0);
 	}
 
-	// Restore Subsystem States
 	UGameInstance* GI = GetGameInstance();
 	if (GI)
 	{
-		// Restore Hero Progression
-		if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
+		ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>();
+		if (ProgSubsystem)
 		{
 			const FLanunHeroSaveData& HeroSave = SaveObj->SaveData.HeroSaveData;
-
-			// We need LoadHeroData method on HeroProgressionSubsystem
-			// For now, we'll set via direct access if method exists
+			ProgSubsystem->LoadHeroData(HeroSave);
+			ProgSubsystem->SetRupiahToASC(SaveObj->SaveData.SavedRupiah);
 		}
 
-		// Restore Rival Nemesis State
-		if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
+		URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>();
+		if (NemesisSubsystem)
 		{
-			// We need LoadRivalGrudgeStates method on RivalNemesisSubsystem
+			NemesisSubsystem->LoadRivalGrudgeStates(SaveObj->SaveData.SavedRivalGrudgeStates);
+		}
+
+		ULanunQuestSubsystem* QuestSubsystem = GI->GetSubsystem<ULanunQuestSubsystem>();
+		if (QuestSubsystem)
+		{
+			TArray<FLanunQuestSaveData> QuestLoadArray;
+			for (const TPair<FName, FLanunQuestSaveData>& Pair : SaveObj->SaveData.SavedQuestStates)
+			{
+				QuestLoadArray.Add(Pair.Value);
+			}
+			QuestSubsystem->LoadQuestState(QuestLoadArray);
 		}
 	}
 
@@ -271,305 +279,316 @@ bool ULanunSaveGameSubsystem::LoadGameAtomic(int32 SlotIndex)
 
 bool ULanunSaveGameSubsystem::SaveGameState(APlayerController* PC)
 {
-    ULanunSaveGame* SaveGameInstance = Cast<ULanunSaveGame>(
-        UGameplayStatics::CreateSaveGameObject(ULanunSaveGame::StaticClass()));
+	ULanunSaveGame* SaveGameInstance = Cast<ULanunSaveGame>(
+		UGameplayStatics::CreateSaveGameObject(ULanunSaveGame::StaticClass()));
 
-    if (!SaveGameInstance)
-    {
-        return false;
-    }
+	if (!SaveGameInstance)
+	{
+		return false;
+	}
 
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        UCalendarWorldSubsystem* CalendarSubsystem = World->GetSubsystem<UCalendarWorldSubsystem>();
-        if (CalendarSubsystem)
-        {
-            FLanunWorldSaveData& SaveData = SaveGameInstance->SaveData;
-            SaveData.SavedYear = CalendarSubsystem->CurrentYear;
-            SaveData.SavedMonth = CalendarSubsystem->CurrentMonth;
-            SaveData.SavedDayOfMonth = CalendarSubsystem->CurrentDayOfMonth;
-            SaveData.SavedHour = CalendarSubsystem->CurrentHour;
-            SaveData.SavedMinute = CalendarSubsystem->CurrentMinute;
-            SaveData.TotalDaysPassed = CalendarSubsystem->TotalDaysPassed;
-        }
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UCalendarWorldSubsystem* CalendarSubsystem = World->GetSubsystem<UCalendarWorldSubsystem>();
+		if (CalendarSubsystem)
+		{
+			FLanunWorldSaveData& SaveData = SaveGameInstance->SaveData;
+			SaveData.SavedYear = CalendarSubsystem->CurrentYear;
+			SaveData.SavedMonth = CalendarSubsystem->CurrentMonth;
+			SaveData.SavedDayOfMonth = CalendarSubsystem->CurrentDayOfMonth;
+			SaveData.SavedHour = CalendarSubsystem->CurrentHour;
+			SaveData.SavedMinute = CalendarSubsystem->CurrentMinute;
+			SaveData.TotalDaysPassed = CalendarSubsystem->TotalDaysPassed;
+		}
 
-        UTerritoryBuyoutSubsystem* TerritorySubsystem = World->GetSubsystem<UTerritoryBuyoutSubsystem>();
-        if (TerritorySubsystem)
-        {
-            SaveGameInstance->SaveData.PurchasedVillages = TerritorySubsystem->GetPurchasedVillagesMap();
-        }
+		UTerritoryBuyoutSubsystem* TerritorySubsystem = World->GetSubsystem<UTerritoryBuyoutSubsystem>();
+		if (TerritorySubsystem)
+		{
+			SaveGameInstance->SaveData.PurchasedVillages = TerritorySubsystem->GetPurchasedVillagesMap();
+		}
 
-        UShipFleetSubsystem* FleetSubsystem = World->GetSubsystem<UShipFleetSubsystem>();
-        if (FleetSubsystem)
-        {
-            FShipFleetData Flagship;
-            if (FleetSubsystem->GetFlagship(Flagship))
-            {
-                SaveGameInstance->SaveData.SavedFlagshipID = Flagship.ShipID;
-            }
+		UShipFleetSubsystem* FleetSubsystem = World->GetSubsystem<UShipFleetSubsystem>();
+		if (FleetSubsystem)
+		{
+			FShipFleetData Flagship;
+			if (FleetSubsystem->GetFlagship(Flagship))
+			{
+				SaveGameInstance->SaveData.SavedFlagshipID = Flagship.ShipID;
+			}
 
-            TMap<FName, float>& HullHealthMap = SaveGameInstance->SaveData.SavedShipHullHealthMap;
-            HullHealthMap.Reset();
-            const TArray<FShipFleetData> FleetShips = FleetSubsystem->GetAllShipsInFleet();
-            for (const FShipFleetData& Ship : FleetShips)
-            {
-                HullHealthMap.Add(Ship.ShipID, Ship.HullHealth);
-            }
-        }
+			TMap<FName, float>& HullHealthMap = SaveGameInstance->SaveData.SavedShipHullHealthMap;
+			HullHealthMap.Reset();
+			const TArray<FShipFleetData> FleetShips = FleetSubsystem->GetAllShipsInFleet();
+			for (const FShipFleetData& Ship : FleetShips)
+			{
+				HullHealthMap.Add(Ship.ShipID, Ship.HullHealth);
+			}
+		}
 
-        UCrewOfficerSubsystem* OfficerSubsystem = World->GetSubsystem<UCrewOfficerSubsystem>();
-        if (OfficerSubsystem)
-        {
-            TMap<FName, FOfficerSaveState>& OfficerStates = SaveGameInstance->SaveData.SavedOfficerStates;
-            OfficerStates.Reset();
-            const TArray<FOfficerData> Officers = OfficerSubsystem->GetAllRegisteredOfficers();
-            for (const FOfficerData& Officer : Officers)
-            {
-                FOfficerSaveState& State = OfficerStates.Add(Officer.OfficerID);
-                State.AssignedShipID = Officer.AssignedShipID;
-                State.CurrentRole = Officer.CurrentAssignedRole;
-            }
-        }
+		UCrewOfficerSubsystem* OfficerSubsystem = World->GetSubsystem<UCrewOfficerSubsystem>();
+		if (OfficerSubsystem)
+		{
+			TMap<FName, FOfficerSaveState>& OfficerStates = SaveGameInstance->SaveData.SavedOfficerStates;
+			OfficerStates.Reset();
+			const TArray<FOfficerData> Officers = OfficerSubsystem->GetAllRegisteredOfficers();
+			for (const FOfficerData& Officer : Officers)
+			{
+				FOfficerSaveState& State = OfficerStates.Add(Officer.OfficerID);
+				State.AssignedShipID = Officer.AssignedShipID;
+				State.CurrentRole = Officer.CurrentAssignedRole;
+			}
+		}
 
-        UPetCompanionSubsystem* PetSubsystem = World->GetSubsystem<UPetCompanionSubsystem>();
-        if (PetSubsystem)
-        {
-            FPetCompanionData ActivePet;
-            SaveGameInstance->SaveData.SavedActivePetID = NAME_None;
-            if (PetSubsystem->GetActivePet(ActivePet))
-            {
-                SaveGameInstance->SaveData.SavedActivePetID = ActivePet.PetID;
-            }
+		UPetCompanionSubsystem* PetSubsystem = World->GetSubsystem<UPetCompanionSubsystem>();
+		if (PetSubsystem)
+		{
+			FPetCompanionData ActivePet;
+			SaveGameInstance->SaveData.SavedActivePetID = NAME_None;
+			if (PetSubsystem->GetActivePet(ActivePet))
+			{
+				SaveGameInstance->SaveData.SavedActivePetID = ActivePet.PetID;
+			}
 
-            TMap<FName, FPetSaveState>& PetStates = SaveGameInstance->SaveData.SavedPetStates;
-            PetStates.Reset();
-            const TArray<FPetCompanionData> Pets = PetSubsystem->GetAllPets();
-            for (const FPetCompanionData& Pet : Pets)
-            {
-                FPetSaveState& State = PetStates.Add(Pet.PetID);
-                State.GrowthStage = Pet.GrowthStage;
-                State.CurrentXP = Pet.CurrentXP;
-                State.LoyaltyScore = Pet.LoyaltyScore;
-                State.BehaviorMode = Pet.BehaviorMode;
-            }
-        }
+			TMap<FName, FPetSaveState>& PetStates = SaveGameInstance->SaveData.SavedPetStates;
+			PetStates.Reset();
+			const TArray<FPetCompanionData> Pets = PetSubsystem->GetAllPets();
+			for (const FPetCompanionData& Pet : Pets)
+			{
+				FPetSaveState& State = PetStates.Add(Pet.PetID);
+				State.GrowthStage = Pet.GrowthStage;
+				State.CurrentXP = Pet.CurrentXP;
+				State.LoyaltyScore = Pet.LoyaltyScore;
+				State.BehaviorMode = Pet.BehaviorMode;
+			}
+		}
 
-        // Save Hero Progression State
-        UGameInstance* GI = GetGameInstance();
-        if (GI)
-        {
-            if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
-            {
-                const FHeroProgressionState& ProgState = ProgSubsystem->GetProgressionState();
-                const FHeroAttributeRaw& AttrRaw = ProgSubsystem->GetAttributeRaw();
+		UGameInstance* GI = GetGameInstance();
+		if (GI)
+		{
+			ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>();
+			if (ProgSubsystem)
+			{
+				const FHeroProgressionState& ProgState = ProgSubsystem->GetProgressionState();
+				const FHeroAttributeRaw& AttrRaw = ProgSubsystem->GetAttributeRaw();
 
-                SaveGameInstance->SaveData.HeroSaveData.Level = ProgState.Level;
-                SaveGameInstance->SaveData.HeroSaveData.CurrentXP = ProgState.CurrentXP;
-                SaveGameInstance->SaveData.HeroSaveData.AttributePoints = ProgState.UnallocatedAttributePoints;
-                SaveGameInstance->SaveData.HeroSaveData.SkillPoints = ProgState.UnallocatedSkillPoints;
+				SaveGameInstance->SaveData.HeroSaveData.Level = ProgState.Level;
+				SaveGameInstance->SaveData.HeroSaveData.CurrentXP = ProgState.CurrentXP;
+				SaveGameInstance->SaveData.HeroSaveData.AttributePoints = ProgState.UnallocatedAttributePoints;
+				SaveGameInstance->SaveData.HeroSaveData.SkillPoints = ProgState.UnallocatedSkillPoints;
 
-                SaveGameInstance->SaveData.HeroSaveData.RawAttributes.Empty();
-                TMap<FGameplayTag, int32> AttrMap;
-                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")), AttrRaw.Strength);
-                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")), AttrRaw.Agility);
-                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")), AttrRaw.Leadership);
-                AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")), AttrRaw.Mysticism);
-                SaveGameInstance->SaveData.HeroSaveData.RawAttributes = AttrMap;
-            }
+				SaveGameInstance->SaveData.HeroSaveData.RawAttributes.Empty();
+				TMap<FGameplayTag, int32> AttrMap;
+				AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Strength")), AttrRaw.Strength);
+				AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Agility")), AttrRaw.Agility);
+				AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Leadership")), AttrRaw.Leadership);
+				AttrMap.Add(FGameplayTag::RequestGameplayTag(TEXT("Attribute.Mysticism")), AttrRaw.Mysticism);
+				SaveGameInstance->SaveData.HeroSaveData.RawAttributes = AttrMap;
+			}
 
-            // Save Rival Nemesis State
-            if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
-            {
-                SaveGameInstance->SaveData.SavedRivalGrudgeStates = NemesisSubsystem->GetAllRivalGrudgeStates();
-            }
-        }
+			URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>();
+			if (NemesisSubsystem)
+			{
+				SaveGameInstance->SaveData.SavedRivalGrudgeStates = NemesisSubsystem->GetAllRivalGrudgeStates();
+			}
 
-        // Save Rupiah from AttributeSet via HeroProgressionSubsystem
-        if (GI)
-        {
-            if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
-            {
-                SaveGameInstance->SaveData.SavedRupiah = ProgSubsystem->GetRupiahFromASC();
-            }
-        }
-    }
+			ULanunQuestSubsystem* QuestSubsystem = GI->GetSubsystem<ULanunQuestSubsystem>();
+			if (QuestSubsystem)
+			{
+				TArray<FLanunQuestSaveData> QuestSaveArray;
+				QuestSubsystem->SaveQuestState(QuestSaveArray);
+				for (const FLanunQuestSaveData& QuestData : QuestSaveArray)
+				{
+					SaveGameInstance->SaveData.SavedQuestStates.Add(QuestData.QuestID, QuestData);
+				}
+			}
+		}
+	}
 
-    if (PC && PC->GetPawn())
-    {
-        const APawn* Pawn = PC->GetPawn();
-        SaveGameInstance->SaveData.PlayerLocation = Pawn->GetActorLocation();
-        SaveGameInstance->SaveData.PlayerRotation = Pawn->GetActorRotation();
-    }
+	if (PC && PC->GetPawn())
+	{
+		const APawn* Pawn = PC->GetPawn();
+		SaveGameInstance->SaveData.PlayerLocation = Pawn->GetActorLocation();
+		SaveGameInstance->SaveData.PlayerRotation = Pawn->GetActorRotation();
+	}
 
-    return UGameplayStatics::SaveGameToSlot(SaveGameInstance, DefaultSlotName, DefaultUserIndex);
+	return UGameplayStatics::SaveGameToSlot(SaveGameInstance, DefaultSlotName, DefaultUserIndex);
 }
 
 bool ULanunSaveGameSubsystem::LoadGameState(APlayerController* PC)
 {
-    if (!DoesSaveSlotExist())
-    {
-        return false;
-    }
+	if (!DoesSaveSlotExist())
+	{
+		return false;
+	}
 
-    ULanunSaveGame* SaveGameInstance = Cast<ULanunSaveGame>(
-        UGameplayStatics::LoadGameFromSlot(DefaultSlotName, DefaultUserIndex));
+	ULanunSaveGame* SaveGameInstance = Cast<ULanunSaveGame>(
+		UGameplayStatics::LoadGameFromSlot(DefaultSlotName, DefaultUserIndex));
 
-    if (!SaveGameInstance)
-    {
-        return false;
-    }
+	if (!SaveGameInstance)
+	{
+		return false;
+	}
 
-    // Jalankan migrasi schema jika save file masih versi lama
-    MigrateSaveDataSchema(SaveGameInstance);
+	MigrateSaveDataSchema(SaveGameInstance);
 
-    UWorld* World = GetWorld();
-    if (World)
-    {
-        UCalendarWorldSubsystem* CalendarSubsystem = World->GetSubsystem<UCalendarWorldSubsystem>();
-        if (CalendarSubsystem)
-        {
-            const FLanunWorldSaveData& SaveData = SaveGameInstance->SaveData;
-            CalendarSubsystem->CurrentYear = SaveData.SavedYear;
-            CalendarSubsystem->CurrentMonth = SaveData.SavedMonth;
-            CalendarSubsystem->CurrentDayOfMonth = SaveData.SavedDayOfMonth;
-            CalendarSubsystem->CurrentHour = SaveData.SavedHour;
-            CalendarSubsystem->CurrentMinute = SaveData.SavedMinute;
-            CalendarSubsystem->TotalDaysPassed = SaveData.TotalDaysPassed;
-        }
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		UCalendarWorldSubsystem* CalendarSubsystem = World->GetSubsystem<UCalendarWorldSubsystem>();
+		if (CalendarSubsystem)
+		{
+			const FLanunWorldSaveData& SaveData = SaveGameInstance->SaveData;
+			CalendarSubsystem->CurrentYear = SaveData.SavedYear;
+			CalendarSubsystem->CurrentMonth = SaveData.SavedMonth;
+			CalendarSubsystem->CurrentDayOfMonth = SaveData.SavedDayOfMonth;
+			CalendarSubsystem->CurrentHour = SaveData.SavedHour;
+			CalendarSubsystem->CurrentMinute = SaveData.SavedMinute;
+			CalendarSubsystem->TotalDaysPassed = SaveData.TotalDaysPassed;
+		}
 
-        UTerritoryBuyoutSubsystem* TerritorySubsystem = World->GetSubsystem<UTerritoryBuyoutSubsystem>();
-        if (TerritorySubsystem)
-        {
-            TerritorySubsystem->LoadPurchasedState(SaveGameInstance->SaveData.PurchasedVillages);
-        }
+		UTerritoryBuyoutSubsystem* TerritorySubsystem = World->GetSubsystem<UTerritoryBuyoutSubsystem>();
+		if (TerritorySubsystem)
+		{
+			TerritorySubsystem->LoadPurchasedState(SaveGameInstance->SaveData.PurchasedVillages);
+		}
 
-        UShipFleetSubsystem* FleetSubsystem = World->GetSubsystem<UShipFleetSubsystem>();
-        if (FleetSubsystem)
-        {
-            const FName& SavedFlagshipID = SaveGameInstance->SaveData.SavedFlagshipID;
-            if (!SavedFlagshipID.IsNone())
-            {
-                FleetSubsystem->SetFlagship(SavedFlagshipID);
-            }
+		UShipFleetSubsystem* FleetSubsystem = World->GetSubsystem<UShipFleetSubsystem>();
+		if (FleetSubsystem)
+		{
+			const FName& SavedFlagshipID = SaveGameInstance->SaveData.SavedFlagshipID;
+			if (!SavedFlagshipID.IsNone())
+			{
+				FleetSubsystem->SetFlagship(SavedFlagshipID);
+			}
 
-            for (const TPair<FName, float>& HullHealthPair : SaveGameInstance->SaveData.SavedShipHullHealthMap)
-            {
-                FShipFleetData ShipData;
-                if (FleetSubsystem->GetShipData(HullHealthPair.Key, ShipData))
-                {
-                    ShipData.HullHealth = FMath::Clamp(HullHealthPair.Value, 0.0f, ShipData.MaxHullHealth);
-                    FleetSubsystem->RegisterShip(ShipData);
-                }
-            }
-        }
+			for (const TPair<FName, float>& HullHealthPair : SaveGameInstance->SaveData.SavedShipHullHealthMap)
+			{
+				FShipFleetData ShipData;
+				if (FleetSubsystem->GetShipData(HullHealthPair.Key, ShipData))
+				{
+					ShipData.HullHealth = FMath::Clamp(HullHealthPair.Value, 0.0f, ShipData.MaxHullHealth);
+					FleetSubsystem->RegisterShip(ShipData);
+				}
+			}
+		}
 
-        UCrewOfficerSubsystem* OfficerSubsystem = World->GetSubsystem<UCrewOfficerSubsystem>();
-        if (OfficerSubsystem)
-        {
-            for (const TPair<FName, FOfficerSaveState>& OfficerPair : SaveGameInstance->SaveData.SavedOfficerStates)
-            {
-                if (!OfficerPair.Value.AssignedShipID.IsNone() && OfficerPair.Value.CurrentRole != EOfficerRole::None)
-                {
-                    OfficerSubsystem->AssignOfficerToShip(
-                        OfficerPair.Key,
-                        OfficerPair.Value.AssignedShipID,
-                        OfficerPair.Value.CurrentRole);
-                }
-                else
-                {
-                    OfficerSubsystem->UnassignOfficer(OfficerPair.Key);
-                }
-            }
-        }
+		UCrewOfficerSubsystem* OfficerSubsystem = World->GetSubsystem<UCrewOfficerSubsystem>();
+		if (OfficerSubsystem)
+		{
+			for (const TPair<FName, FOfficerSaveState>& OfficerPair : SaveGameInstance->SaveData.SavedOfficerStates)
+			{
+				if (!OfficerPair.Value.AssignedShipID.IsNone() && OfficerPair.Value.CurrentRole != EOfficerRole::None)
+				{
+					OfficerSubsystem->AssignOfficerToShip(
+						OfficerPair.Key,
+						OfficerPair.Value.AssignedShipID,
+						OfficerPair.Value.CurrentRole);
+				}
+				else
+				{
+					OfficerSubsystem->UnassignOfficer(OfficerPair.Key);
+				}
+			}
+		}
 
-        UPetCompanionSubsystem* PetSubsystem = World->GetSubsystem<UPetCompanionSubsystem>();
-        if (PetSubsystem)
-        {
-            for (const TPair<FName, FPetSaveState>& PetPair : SaveGameInstance->SaveData.SavedPetStates)
-            {
-                FPetCompanionData PetData;
-                if (PetSubsystem->GetPetData(PetPair.Key, PetData))
-                {
-                    PetData.GrowthStage = PetPair.Value.GrowthStage;
-                    PetData.CurrentXP = FMath::Max(PetPair.Value.CurrentXP, 0.0f);
-                    PetData.LoyaltyScore = FMath::Clamp(PetPair.Value.LoyaltyScore, 0.0f, 100.0f);
-                    PetData.BehaviorMode = PetPair.Value.BehaviorMode;
-                    PetSubsystem->RegisterPet(PetData);
-                }
-            }
+		UPetCompanionSubsystem* PetSubsystem = World->GetSubsystem<UPetCompanionSubsystem>();
+		if (PetSubsystem)
+		{
+			for (const TPair<FName, FPetSaveState>& PetPair : SaveGameInstance->SaveData.SavedPetStates)
+			{
+				FPetCompanionData PetData;
+				if (PetSubsystem->GetPetData(PetPair.Key, PetData))
+				{
+					PetData.GrowthStage = PetPair.Value.GrowthStage;
+					PetData.CurrentXP = FMath::Max(PetPair.Value.CurrentXP, 0.0f);
+					PetData.LoyaltyScore = FMath::Clamp(PetPair.Value.LoyaltyScore, 0.0f, 100.0f);
+					PetData.BehaviorMode = PetPair.Value.BehaviorMode;
+					PetSubsystem->RegisterPet(PetData);
+				}
+			}
 
-            if (!SaveGameInstance->SaveData.SavedActivePetID.IsNone())
-            {
-                PetSubsystem->SetActivePet(SaveGameInstance->SaveData.SavedActivePetID);
-            }
-        }
+			if (!SaveGameInstance->SaveData.SavedActivePetID.IsNone())
+			{
+				PetSubsystem->SetActivePet(SaveGameInstance->SaveData.SavedActivePetID);
+			}
+		}
 
-            // Restore Hero Progression State
-            UGameInstance* GI = GetGameInstance();
-            if (GI)
-            {
-                if (ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>())
-                {
-                    const FLanunHeroSaveData& HeroSave = SaveGameInstance->SaveData.HeroSaveData;
-                    ProgSubsystem->LoadHeroData(HeroSave);
+		UGameInstance* GI = GetGameInstance();
+		if (GI)
+		{
+			ULanunHeroProgressionSubsystem* ProgSubsystem = GI->GetSubsystem<ULanunHeroProgressionSubsystem>();
+			if (ProgSubsystem)
+			{
+				const FLanunHeroSaveData& HeroSave = SaveGameInstance->SaveData.HeroSaveData;
+				ProgSubsystem->LoadHeroData(HeroSave);
+			}
 
-                    if (URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>())
-                    {
-                        NemesisSubsystem->LoadRivalGrudgeStates(SaveGameInstance->SaveData.SavedRivalGrudgeStates);
-                    }
+			URivalNemesisSubsystem* NemesisSubsystem = GI->GetSubsystem<URivalNemesisSubsystem>();
+			if (NemesisSubsystem)
+			{
+				NemesisSubsystem->LoadRivalGrudgeStates(SaveGameInstance->SaveData.SavedRivalGrudgeStates);
+			}
 
-                    ProgSubsystem->SetRupiahToASC(SaveGameInstance->SaveData.SavedRupiah);
-                }
-            }
-    }
+			ULanunQuestSubsystem* QuestSubsystem = GI->GetSubsystem<ULanunQuestSubsystem>();
+			if (QuestSubsystem)
+			{
+				TArray<FLanunQuestSaveData> QuestLoadArray;
+				for (const TPair<FName, FLanunQuestSaveData>& Pair : SaveGameInstance->SaveData.SavedQuestStates)
+				{
+					QuestLoadArray.Add(Pair.Value);
+				}
+				QuestSubsystem->LoadQuestState(QuestLoadArray);
+			}
+		}
+	}
 
-    if (PC && PC->GetPawn())
-    {
-        APawn* Pawn = PC->GetPawn();
-        Pawn->SetActorLocationAndRotation(
-            SaveGameInstance->SaveData.PlayerLocation,
-            SaveGameInstance->SaveData.PlayerRotation);
-    }
+	if (PC && PC->GetPawn())
+	{
+		APawn* Pawn = PC->GetPawn();
+		Pawn->SetActorLocationAndRotation(
+			SaveGameInstance->SaveData.PlayerLocation,
+			SaveGameInstance->SaveData.PlayerRotation);
+	}
 
-    return true;
+	return true;
 }
 
 bool ULanunSaveGameSubsystem::DoesSaveSlotExist() const
 {
-    return UGameplayStatics::DoesSaveGameExist(DefaultSlotName, DefaultUserIndex);
+	return UGameplayStatics::DoesSaveGameExist(DefaultSlotName, DefaultUserIndex);
 }
 
 void ULanunSaveGameSubsystem::MigrateSaveDataSchema(ULanunSaveGame* SaveInstance)
 {
-    if (!SaveInstance)
-    {
-        return;
-    }
+	if (!SaveInstance)
+	{
+		return;
+	}
 
-    if (SaveInstance->SaveSchemaVersion >= 2)
-    {
-        return;
-    }
+	if (SaveInstance->SaveSchemaVersion >= 2)
+	{
+		return;
+	}
 
-    UE_LOG(LogTemp, Warning, TEXT("Migrating Save Game Schema from V%d to V2..."), SaveInstance->SaveSchemaVersion);
+	UE_LOG(LogTemp, Warning, TEXT("Migrating Save Game Schema from V%d to V2..."), SaveInstance->SaveSchemaVersion);
 
-    FLanunWorldSaveData& SaveData = SaveInstance->SaveData;
+	FLanunWorldSaveData& SaveData = SaveInstance->SaveData;
 
-    for (const FOfficerSaveState& OldData : SaveData.LegacyOfficers_DEPRECATED)
-    {
-        FOfficerLegacyState NewLegacyState;
-        NewLegacyState.OfficerID = OldData.AssignedShipID;
-        NewLegacyState.GenerationIndex = 1;
-        NewLegacyState.LegacyStatus = ECompanionLegacyStatus::ActiveOnBoard;
-        NewLegacyState.InheritedLoyaltyBonus = 0;
-        NewLegacyState.LegacyBonusAppliedGeneration = 1;
+	for (const FOfficerSaveState& OldData : SaveData.LegacyOfficers_DEPRECATED)
+	{
+		FOfficerLegacyState NewLegacyState;
+		NewLegacyState.OfficerID = OldData.AssignedShipID;
+		NewLegacyState.GenerationIndex = 1;
+		NewLegacyState.LegacyStatus = ECompanionLegacyStatus::ActiveOnBoard;
+		NewLegacyState.InheritedLoyaltyBonus = 0;
+		NewLegacyState.LegacyBonusAppliedGeneration = 1;
 
-        SaveData.OfficerLegacyStates.Add(NewLegacyState);
-    }
+		SaveData.OfficerLegacyStates.Add(NewLegacyState);
+	}
 
-    SaveData.LegacyOfficers_DEPRECATED.Empty();
-    SaveInstance->SaveSchemaVersion = 2;
+	SaveData.LegacyOfficers_DEPRECATED.Empty();
+	SaveInstance->SaveSchemaVersion = 2;
 
-    UE_LOG(LogTemp, Log, TEXT("Save Game Migration Completed Successfully."));
+	UE_LOG(LogTemp, Log, TEXT("Save Game Migration Completed Successfully."));
 }

@@ -8,6 +8,7 @@
 #include "PetCompanionSubsystem.h"
 #include "LanunAttributeSetBase.h"
 #include "LanunHeroSaveData.h"
+#include "LanunQuestData.h"
 #include "RivalNemesisSubsystem.h"
 #include "GameplayTagContainer.h"
 #include "LanunSaveGameSubsystem.generated.h"
@@ -138,6 +139,10 @@ struct FLanunWorldSaveData
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Nemesis|Save")
 	TMap<FName, int32> SavedRivalGrudgeStates;
+
+	/** Quest states for save/load persistence */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Quest|Save")
+	TMap<FName, FLanunQuestSaveData> SavedQuestStates;
 
 	/** Array V1 (deprecated) — digunakan hanya selama migrasi dari save file lama. */
 	UPROPERTY()
